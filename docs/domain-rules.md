@@ -37,8 +37,8 @@ Do not interpret model role constants as evidence that every role has permission
 | Reusable files | Assignment/template creation allows up to five combined existing/new attachments; general uploaded files have a 10 MiB cap. Existing attachment IDs must belong to the requester. | R9: consistently enforce intended limits across create/edit paths. Do not assume create checks cover updates. |
 | Download access | Owner may download. Submission files allow non-student course memberships without an active-status filter. Assignment files allow active membership in a referencing course without visibility/start checks. | R10: settle pre-release attachment access and apply active membership rules consistently. |
 | Manual grading | Teacher helper permits grading; TA helper has conditional behavior. Scores are `int16` without assignment-relative bounds. Grade+comment operations are separate writes. | R9/R12: agreed bounds and atomic behavior. Do not invent a grading scale beyond the assignment maximum. |
-| Comments | Upsert keys on submission/author/role; visibility is stored separately. Student detail queries preload only visible comments. AI comments are immediately visible. | Decide feedback release and AI review requirements; protect student reads and write consistency. |
-| AI grading | Normal runs skip AI-graded submissions but include human grades; forced regrade processes the loaded submissions. Writes overwrite score/role. AI scores are clamped; ambiguous indexes can be reused for missing results. | R4/R5: protect human work and require unambiguous attribution. Exact regrade/approval policy remains open. |
+| Comments | Manual upsert keys on submission/author/role; AI upsert keys on submission/AI role. Visibility is stored separately; student detail preloads only visible comments. AI score and its immediately visible feedback commit together. | Decide feedback release and AI review requirements. Manual score+comment atomicity remains R12. |
+| AI grading | Approved R4 policy: normal jobs fill only rows with both point and grader null; forced jobs may additionally replace AI-attributed grades. Teacher/TA and unknown or unattributed existing scores remain protected. Eligibility is checked again in the score/AI-comment transaction. No pre-reset; previous AI output survives failed replacement, and existing AI comment IDs are retained on success. | R4 verified under real PostgreSQL contention in both write orders. Manual updates committing before the AI save cause both AI writes to skip; manual updates following the AI transaction win the final score. R5 attribution and broader R12 job recovery remain open. |
 | Job state/retries | Pending/processing jobs block another start for the same assignment/teacher. DB job is created/reset before enqueue; failures can leave stale state. Early worker exit with zero attached submissions does not complete/fail the job. | R12: recoverable states, truthful status, retry safety, and explicit timeout units. |
 | Statistics | Active students drive summaries. A map keeps one encountered submission per student, without an explicit attempt-selection policy. Lateness uses `UpdatedAt` and base due date; grading can affect that timestamp. | R8/R13: stable submission timing, overrides, deterministic attempt selection, and meaningful incomplete/not-started counts. |
 | Python execution | Global teacher permission only; Judge0 receives limits and network disabled. No student execution permission exists in the map. | Decide student/TA availability before changing execution permissions. |
@@ -74,8 +74,9 @@ Do not interpret model role constants as evidence that every role has permission
    and extension effects on due/close; define the timestamp that measures lateness.
 3. **Roles:** allowed TA/admin actions, privacy of member data, and whether students
    or TAs may execute Python. Do not infer policy from UI controls.
-4. **Grades:** teacher versus TA versus AI precedence, explicit regrade authority,
-   concurrent edits, and whether changed submission content invalidates prior grades.
+4. **Grades:** teacher versus TA precedence, explicit regrade authority, and whether
+   changed submission content invalidates prior grades. Human-over-AI precedence and
+   forced AI-only replacement were approved and verified under R4.
 5. **Feedback:** when scores/comments become visible and whether AI output requires
    teacher approval before publication.
 6. **Reuse/access:** whether files of hidden/upcoming assignments may be downloaded,

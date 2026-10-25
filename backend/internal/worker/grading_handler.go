@@ -162,68 +162,27 @@ func runAutoGrading(ctx context.Context, assignmentID string, teacherID string, 
 	var pending []models.Submission
 	skippedCount := 0
 
-	if forceRegade {
-		log.Info("auto_grading_regrade_reset",
-			"teacher_id", teacherID,
-			"assignment_id", assignmentID,
-			"total", total,
-			"reason", "Force re-grade requested, clearing previous AI grades",
-		)
-		if err := repository.ResetAIGrades(assignmentID); err != nil {
-			log.Error("auto_grading_failed",
-				"error", err,
-				"teacher_id", teacherID,
-				"assignment_id", assignmentID,
-				"reason", "Failed to reset previous AI grades for re-grading",
-			)
-			failErr := repository.FailGradingJob(assignmentID, teacherID, fmt.Sprintf("Re-grade reset failed: %v", err))
-			if failErr != nil {
-				log.Error("auto_grading_fail_job_error", "error", failErr)
-			}
+	// Initial filtering avoids unnecessary provider work. The repository repeats
+	// this check atomically because a human may grade while the provider runs.
+	for _, s := range submissions {
+		ungraded := s.GradedBy == nil && s.Point == nil
+		regradeAI := forceRegade && s.GradedBy != nil && *s.GradedBy == gradedByAI
+		if !ungraded && !regradeAI {
+			skippedCount++
+			continue
+		}
+		pending = append(pending, s)
+	}
+	if len(pending) == 0 {
+		if err := repository.UpdateGradingJob(assignmentID, teacherID, 100, total); err != nil {
 			return err
 		}
-		// After reset, all submissions need grading
-		pending = submissions
-	} else {
-		// Filter out submissions already graded by AI (idempotent skip)
-		for _, s := range submissions {
-			if s.GradedBy != nil && *s.GradedBy == gradedByAI {
-				skippedCount++
-				continue
-			}
-			pending = append(pending, s)
-		}
-		if skippedCount > 0 {
-			log.Info("auto_grading_skipped_already_graded",
-				"teacher_id", teacherID,
-				"assignment_id", assignmentID,
-				"skipped", skippedCount,
-				"pending", len(pending),
-			)
-		}
-
-		// If all submissions are already graded, complete immediately.
-		if len(pending) == 0 {
-			log.Info("auto_grading_nothing_to_do",
-				"teacher_id", teacherID,
-				"assignment_id", assignmentID,
-				"total", total,
-			)
-			if err := repository.CompleteGradingJob(assignmentID, teacherID); err != nil {
-				log.Error("auto_grading_failed",
-					"error", err,
-					"teacher_id", teacherID,
-					"assignment_id", assignmentID,
-					"reason", "Failed to complete grading job (no pending submissions)",
-				)
-				return err
-			}
-			return nil
-		}
+		return repository.CompleteGradingJob(assignmentID, teacherID)
 	}
 
 	// Track how many submissions have been processed overall (including pre-graded).
 	processedOverall := skippedCount
+	appliedCount := 0
 	totalBatches := (len(pending) + batchSize - 1) / batchSize
 
 	for i := 0; i < len(pending); i += batchSize {
@@ -418,10 +377,9 @@ func runAutoGrading(ctx context.Context, assignmentID string, teacherID string, 
 		}
 
 		for _, gradingForm := range normalizedGradingForms {
-			err = repository.UpdateSubmission(gradingForm.SubmissionID, map[string]any{
-				"point":     gradingForm.Point,
-				"graded_by": gradedByAI,
-			})
+			applied, saveErr := repository.SaveAIGradeAndComment(assignmentID,
+				gradingForm.SubmissionID, teacherID, gradingForm.Point, gradingForm.Comment, forceRegade)
+			err = saveErr
 			if err != nil {
 				log.Error("auto_grading_failed",
 					"error", err,
@@ -439,30 +397,10 @@ func runAutoGrading(ctx context.Context, assignmentID string, teacherID string, 
 				return err
 			}
 
-			// Create AI comment for the submission
-			comment := &models.Comment{
-				SubmissionID:  gradingForm.SubmissionID,
-				Comment:       gradingForm.Comment,
-				CreatedByRole: models.RoleAI,
-				CreatedBy:     teacherID,
-				Visible:       true,
-			}
-			err = repository.CreateOrUpdateComment(comment)
-			if err != nil {
-				log.Error("auto_grading_failed",
-					"error", err,
-					"teacher_id", teacherID,
-					"assignment_id", assignmentID,
-					"submission_id", gradingForm.SubmissionID,
-					"batch", batchNum,
-					"reason", "Failed to write AI comment to database",
-				)
-				failMsg := fmt.Sprintf("Batch %d: failed to create comment for submission %s: %v", batchNum, gradingForm.SubmissionID, err)
-				failErr := repository.FailGradingJob(assignmentID, teacherID, failMsg)
-				if failErr != nil {
-					log.Error("auto_grading_fail_job_error", "error", failErr)
-				}
-				return err
+			if applied {
+				appliedCount++
+			} else {
+				log.Info("auto_grading_skipped_at_write", "submission_id", gradingForm.SubmissionID)
 			}
 		}
 
@@ -516,7 +454,7 @@ func runAutoGrading(ctx context.Context, assignmentID string, teacherID string, 
 		"assignment_id", assignmentID,
 		"total_submissions", total,
 		"skipped_already_graded", skippedCount,
-		"newly_graded", len(pending),
+		"newly_graded", appliedCount,
 		"force_regrade", forceRegade,
 	)
 

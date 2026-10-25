@@ -2,7 +2,6 @@ package repository
 
 import (
 	stderrors "errors"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -264,32 +263,4 @@ func DeletePromptTemplateByID(userID, promptID string) error {
 	return database.DB.
 		Where("user_id = ? AND id = ?", userID, promptID).
 		Delete(&models.PromptTemplate{}).Error
-}
-
-// ResetAIGrades clears all AI-generated grades and comments for submissions
-// belonging to the given assignment, allowing them to be re-graded.
-func ResetAIGrades(assignmentID string) error {
-	// Clear AI comments first (they reference submissions)
-	if err := database.DB.
-		Where("submission_id IN (?) AND created_by_role = ?",
-			database.DB.Model(&models.Submission{}).
-				Select("id").
-				Where("assignment_id = ?", assignmentID),
-			models.RoleAI,
-		).
-		Delete(&models.Comment{}).Error; err != nil {
-		return fmt.Errorf("failed to delete AI comments: %w", err)
-	}
-
-	// Clear AI grades on submissions
-	if err := database.DB.Model(&models.Submission{}).
-		Where("assignment_id = ? AND graded_by = ?", assignmentID, "ai").
-		Updates(map[string]any{
-			"point":     nil,
-			"graded_by": nil,
-		}).Error; err != nil {
-		return fmt.Errorf("failed to reset AI grades: %w", err)
-	}
-
-	return nil
 }

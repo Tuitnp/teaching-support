@@ -118,11 +118,20 @@ Each checkbox should normally be a separate change with focused regression tests
   all 82 submission HTTP scenarios, full Go test/vet, and both binary builds passed.
   Independent review found no confirmed backend bypass/regression. Browser expiry
   returns 401; automatic login navigation is not implemented. See the R3 baseline.
-- [ ] **R4: Protect human grades from AI overwrites.** The worker includes human
-  grades in pending/regrade sets and writes AI grades unconditionally. See
+- [x] **R4: Protect human grades from AI overwrites.** Previously, the worker included
+  human grades in pending/regrade sets and wrote AI grades unconditionally. See
   `backend/internal/worker/grading_handler.go`.
   Acceptance: agreed grade precedence is enforced at write time, including when a
   teacher grades while a job is running; retries do not overwrite protected scores.
+  Evidence: approved human-over-AI precedence now applies to both selection and a
+  conditional score+feedback transaction. Normal jobs fill entirely ungraded rows;
+  forced jobs additionally replace AI grades. Removed destructive pre-reset so
+  protected feedback and prior AI results survive failed regrading. Twenty real
+  PostgreSQL/fake-provider scenarios passed, including actual contention in both
+  write orders, concurrent normal/forced saves, rollback, and retries. Full Go
+  tests (including all 82 R1 scenarios), vet, and both binary builds passed.
+  Independent review found no confirmed functional bypass/regression. TA permissions
+  remain unchanged; R5 attribution and broader R12 recovery remain separate.
 - [ ] **R5: Reject ambiguous AI result attribution.** The normalizer can reuse
   duplicate/invalid results to fill missing indexes. See
   `normalizeAIGradingResults` in `backend/internal/worker/grading_handler.go`.
@@ -179,8 +188,8 @@ Each checkbox should normally be a separate change with focused regression tests
   is reviewed separately with migration and rollback considerations.
 
 Decisions to settle alongside the relevant item: allowed attempts; upload versus
-submission timestamps; extension effects on due/close dates; human/AI grade
-precedence and regrading; TA rights; student Python execution; empty submissions;
+submission timestamps; extension effects on due/close dates; manual-role precedence
+and regrade authority (R4 settles human-over-AI precedence); TA rights; student Python execution; empty submissions;
 and whether text answers or multi-section distribution are actually required.
 Do not infer these requirements from the historical plan.
 
@@ -302,3 +311,11 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   full Go test/vet, and both binary builds passed. Independent review found no
   confirmed backend bypass/regression. Browser auto-navigation and refresh/revocation
   are not implemented; expired requests return 401. Only disposable test data used.
+- 2026-10-25 (R4): Enforced the approved human-over-AI rule in selection and a
+  write-time conditional score+feedback transaction. Retired destructive forced
+  resets; failed regrades preserve old AI output and successful replacements update
+  AI feedback in place. Twenty PostgreSQL/fake-provider cases passed, including real
+  contention, rollback, concurrent saves, and retries. Full Go tests including R1,
+  vet, both builds, and diff checks passed. Independent review found no confirmed
+  functional issue; verification gaps it identified were covered. TA permissions,
+  R5 mapping, and broader R12 recovery were not changed.

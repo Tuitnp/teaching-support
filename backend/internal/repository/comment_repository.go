@@ -19,14 +19,18 @@ func CreateComment(comment *models.Comment) (*models.Comment, error) {
 }
 
 func CreateOrUpdateComment(comment *models.Comment) error {
+	return createOrUpdateComment(database.DB, comment)
+}
+
+func createOrUpdateComment(db *gorm.DB, comment *models.Comment) error {
 	var existing models.Comment
 
-	err := database.DB.
+	err := db.
 		Where("submission_id = ? AND created_by_role = ?", comment.SubmissionID, comment.CreatedByRole).
 		First(&existing).Error
 
 	if err == nil {
-		return database.DB.Model(&existing).Updates(map[string]any{
+		return db.Model(&existing).Updates(map[string]any{
 			"comment":    comment.Comment,
 			"visible":    comment.Visible,
 			"created_by": comment.CreatedBy,
@@ -34,7 +38,7 @@ func CreateOrUpdateComment(comment *models.Comment) error {
 	}
 
 	if stderrors.Is(err, gorm.ErrRecordNotFound) {
-		return database.DB.Create(comment).Error
+		return db.Create(comment).Error
 	}
 
 	return err

@@ -131,7 +131,13 @@ Fiber errors directly, so not every failure shares that JSON contract.
    `{assignment_id,teacher_id,force_regrade}` -> worker loads attached submissions,
    decrypts provider key, reads files, batches ten answers, calls provider,
    normalizes results, writes scores/comments and progress. Worker concurrency is
-   three; enqueue sets max retries to three. The raw `Timeout(60)` option needs
+   three. [AI persistence](../backend/internal/repository/ai_grade_repository.go)
+   saves score and AI feedback in one conditional transaction: normal jobs fill
+   entirely ungraded rows; forced jobs may also replace AI-attributed work. Human
+   grades are protected at write time, including after provider calls. Forced jobs
+   retain previous AI output until replacement commits; there is no broad pre-reset.
+   Existing AI comments are updated in place. Queue enqueue
+   sets max retries to three. The raw `Timeout(60)` option needs
    duration-unit verification under R12; do not describe it as 60 seconds.
 6. **Run Python:** API sends base64 code/input to Judge0 with Python language ID 71,
    resource limits and `enable_network=false`; HTTP timeout is ten seconds.

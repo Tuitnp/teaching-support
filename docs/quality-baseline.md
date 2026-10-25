@@ -346,3 +346,67 @@ retains cached user state; expiry is enforced by API 401 responses, after which 
 must log out and sign in again. Automatic browser navigation, refresh tokens, and
 server-side revocation are outside this patch. Deploying it invalidates old tokens
 without expiry; operators must provide a sufficiently long secret before startup.
+
+## R4 human-grade protection and concurrent AI persistence
+
+Measured: 2026-10-25. User-approved policy: teacher/TA grades always outrank AI,
+including forced jobs and retries; if a human grade commits before AI persistence,
+skip both AI score and feedback. Normal jobs fill only wholly ungraded rows; forced
+jobs may additionally replace AI-attributed work. Unknown graders and scores without
+provenance are preserved rather than treated as ungraded.
+
+The worker now filters candidates consistently with a repository transaction that
+conditionally updates the submission, checks affected rows, and upserts AI feedback
+through the same transaction. PostgreSQL's submission row lock serializes manual
+updates against both AI writes. If manual grading commits first, neither AI write
+occurs; if AI locks first, manual grading waits, then its score wins. No manual-role
+permissions changed. Removed the broad forced-reset helper, which could delete AI
+feedback on human-graded work. Forced replacement now preserves prior AI output on
+failure and updates an existing AI comment in place rather than deleting/recreating
+it. These changes require no migrations or dependency changes.
+
+Added [grading_policy_test.go](../backend/internal/worker/grading_policy_test.go).
+Twenty scenarios run the actual Asynq handler directly (no Redis), real repositories
+and PostgreSQL, synthetic encrypted credentials, fake file storage, and the existing
+custom-provider/OpenAI SDK against a loopback HTTP fixture:
+
+- Normal/forced jobs protect zero-point teacher, TA, and unknown-role grades, all
+  existing manual/AI comments, authors, visibility, and timestamps in mixed batches.
+- A manual grade committed during the fake provider call protects both writes under
+  normal/forced execution and subsequent payload retries.
+- Existing AI scores are skipped normally, replaced only when forced, and preserved
+  on provider failure. Normal retries do not duplicate scores/comments; unattributed
+  existing scores are left alone.
+- Real separate PostgreSQL connections contend in both human-first and AI-first
+  orders. Tests observe `pg_blocking_pids`, using only fixture-local SQL, triggers,
+  and a transaction advisory lock to control ordering; no timing-only assumption.
+- Comment-write failure rolls back the AI score. Concurrent normal saves apply once;
+  concurrent forced saves and forced repeats keep one AI comment. Wrong-assignment
+  saves leave the submission untouched. Successful mixed jobs finish with complete
+  progress and processed counts.
+
+The pre-patch run reproduced human overwrites in normal/forced jobs, provider-window
+races, and destructive failure resets. Final cases pass. Independent source review
+found no confirmed functional bypass/regression; its requested contention, rollback,
+and concurrent-save checks were implemented and executed. A reported trailing blank
+line was removed before final diff validation.
+
+| Check | Result |
+| --- | --- |
+| `go test -mod=readonly -count=1 -timeout 90s -v ./internal/worker` | Pass; initial 19 scenarios, then expanded with concurrent forced saves |
+| `go test -mod=readonly -count=1 -timeout 90s ./...` with disposable test URL | Pass; all 20 R4 scenarios, 82 R1 HTTP cases, JWT/config and storage suites executed |
+| `go vet -mod=readonly ./...` | Pass |
+| `go build -mod=readonly -o <external-results>/r4-server.exe ./cmd/server` | Pass; not executed |
+| `go build -mod=readonly -o <external-results>/r4-worker.exe ./cmd/worker` | Pass; not executed |
+| `git diff --check` | Pass |
+
+Checks used an external source copy, `GOTOOLCHAIN=local`, and external `TMP`/`TEMP`.
+Only the explicit disposable test database was used, in random schemas dropped by
+test cleanup. No AutoMigrate, application startup, paid AI calls, live Redis/provider,
+production/student data, package installation, or infrastructure changes occurred.
+Frontend files were unchanged and their checks were not repeated. Broader R12 job
+recovery/manual multi-write atomicity and R5 result attribution remain unverified.
+Final cleanup found zero R1/R4 fixture schemas, stopped the disposable PostgreSQL
+cluster, and confirmed that its port had no listener. All 79 checked backend files
+matched the external test copy; all 75 relative links in the changed project
+documents resolved.

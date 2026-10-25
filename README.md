@@ -18,6 +18,9 @@ frontend tests are not configured. R1 added and passed PostgreSQL-backed HTTP te
 for nested submission authorization; see the baseline for the required test URL.
 R2 added storage isolation tests using local files and a fake S3 HTTP endpoint,
 including SDK multipart uploads; they require no external services or credentials.
+R3 verifies JWT configuration and expiry; R4 verifies human-grade protection with
+disposable PostgreSQL and a fake AI endpoint. Both database suites use the explicit
+test URL documented in the baseline and skip without it.
 A frontend development-server HTTP smoke check also passed. These results do not verify
 database, university authentication, storage, execution, or grading integrations.
 

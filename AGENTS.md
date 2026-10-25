@@ -56,8 +56,8 @@ backend/:  go vet -mod=readonly ./...
 ```
 
 Measured results are in `docs/quality-baseline.md`. Builds, typecheck, frontend lint,
-and Go vet passed; lint still has 74 warnings. Backend submission authorization
-tests require `TEACHING_SUPPORT_TEST_DATABASE_URL` naming a disposable PostgreSQL
+and Go vet passed; lint still has 74 warnings. Backend submission authorization and
+AI grading regression tests require `TEACHING_SUPPORT_TEST_DATABASE_URL` naming a disposable PostgreSQL
 database; see the baseline for setup. Without it, those tests skip. Frontend tests
 are not configured. Storage regression tests run without external services or
 credentials. A Go test command without executed tests proves compilation,
