@@ -16,6 +16,8 @@ Go vet, and API/worker binary builds. F4 frontend lint passes with 0 errors and
 74 existing warnings (down from 39 errors and 79 warnings);
 frontend tests are not configured. R1 added and passed PostgreSQL-backed HTTP tests
 for nested submission authorization; see the baseline for the required test URL.
+R2 added storage isolation tests using local files and a fake S3 HTTP endpoint,
+including SDK multipart uploads; they require no external services or credentials.
 A frontend development-server HTTP smoke check also passed. These results do not verify
 database, university authentication, storage, execution, or grading integrations.
 

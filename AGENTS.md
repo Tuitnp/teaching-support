@@ -10,6 +10,9 @@
   checklist when work is completed, priorities change, or checks reveal new facts.
 - Keep work scoped to one observable outcome. Preserve existing user changes and
   avoid unrelated formatting, dependency upgrades, and architectural refactors.
+- After completing a fix and passing the relevant checks, create a local Git commit
+  containing the fix and its tests/documentation. Inspect the staged diff, exclude
+  unrelated changes, and report the commit hash. Do not push unless requested.
 
 ## Architecture pointers
 
@@ -56,7 +59,8 @@ Measured results are in `docs/quality-baseline.md`. Builds, typecheck, frontend 
 and Go vet passed; lint still has 74 warnings. Backend submission authorization
 tests require `TEACHING_SUPPORT_TEST_DATABASE_URL` naming a disposable PostgreSQL
 database; see the baseline for setup. Without it, those tests skip. Frontend tests
-are not configured. A Go test command without executed tests proves compilation,
+are not configured. Storage regression tests run without external services or
+credentials. A Go test command without executed tests proves compilation,
 not coverage. Run
 focused checks first, broader checks as appropriate, and `git diff --check` before
 handoff. Report commands actually run, failures, skipped checks, and remaining

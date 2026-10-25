@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
-	"time"
 )
 
 // LocalStorage implements StorageProvider for local filesystem storage
@@ -26,8 +25,10 @@ func NewLocalStorage(baseDir string) (*LocalStorage, error) {
 
 // Upload saves a file to local storage
 func (ls *LocalStorage) Upload(ctx context.Context, fileBytes []byte, fileName string) (string, error) {
-	// Create a key similar to S3 format: assignments/timestamp-filename
-	key := fmt.Sprintf("%d-%s", time.Now().Unix(), fileName)
+	key, err := newObjectKey()
+	if err != nil {
+		return "", err
+	}
 	
 	// Construct full file path
 	fullPath := filepath.Join(ls.BaseDir, key)
@@ -38,9 +39,18 @@ func (ls *LocalStorage) Upload(ctx context.Context, fileBytes []byte, fileName s
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 	
-	// Write the file
-	if err := os.WriteFile(fullPath, fileBytes, 0644); err != nil {
-		return "", fmt.Errorf("failed to write file: %w", err)
+	// Never truncate an existing object, even in the unlikely event of a collision.
+	file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	_, writeErr := file.Write(fileBytes)
+	closeErr := file.Close()
+	if writeErr != nil {
+		return "", fmt.Errorf("failed to write file: %w", writeErr)
+	}
+	if closeErr != nil {
+		return "", fmt.Errorf("failed to close file: %w", closeErr)
 	}
 	
 	return key, nil

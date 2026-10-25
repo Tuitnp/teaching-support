@@ -1,6 +1,6 @@
 # Development checklist
 
-Updated: 2026-10-24 (Asia/Bangkok)
+Updated: 2026-10-25 (Asia/Bangkok)
 
 This is the shared project roadmap from the repository audit and its approved
 recommendations. It records application work and developer documentation, not
@@ -22,7 +22,9 @@ all 39 frontend lint errors and removed five warnings: lint now passes with 74
 warnings and no new warning fingerprints. Frontend tests are not configured. R1
 adds backend submission authorization tests that require an explicit disposable
 PostgreSQL test URL; without it, tests skip. F4 added focused frontend typing/hook/ref
-fixes; R1 scopes nested submission routes. Infrastructure remains unchanged.
+fixes; R1 scopes nested submission routes. R2 isolates new storage uploads and adds
+storage regression tests using local fixtures. Completed fixes must be committed locally
+with their tests/documentation under AGENTS.md. Infrastructure remains unchanged.
 F2 setup documentation describes
 the verified host workflow and the blocked Compose integration path. F3 source/API
 and domain references are available in [architecture.md](architecture.md) and
@@ -90,11 +92,19 @@ Each checkbox should normally be a separate change with focused regression tests
   for denied requests and legitimate create/download controls. Go test/vet and both
   binary builds passed; independent source review found no confirmed bypass or
   regression. See the R1 section in [quality-baseline.md](quality-baseline.md).
-- [ ] **R2: Make storage keys collision-resistant.** Local, S3, and MinIO uploads
-  use a second-resolution timestamp plus filename. See
+- [x] **R2: Make storage keys collision-resistant.** Local, S3, and MinIO uploads
+  previously used a second-resolution timestamp plus filename. See
   `backend/internal/storage/{local,aws,minio}.go`.
   Acceptance: same-name concurrent uploads have distinct keys and retain their own
   bytes; downloads/deletion affect only the intended object.
+  Evidence: all providers share random UUID keys independent of filenames; local
+  file creation is exclusive. Eleven provider scenarios passed for concurrent
+  same-name uploads, multipart uploads, filename edge cases, empty files, and
+  ordinary legacy keys. Downloads/reads retain each payload and deletion preserves
+  other objects. Full Go test/vet and both binary builds passed; R1 database tests
+  skipped without their explicit test URL. Independent review found no confirmed
+  bypass or regression. See [quality-baseline.md](quality-baseline.md). Existing
+  collided objects/overwritten bytes are not repaired by new-key generation.
 - [ ] **R3: Validate JWT configuration and define expiry.** Secrets are captured
   before dotenv loads, and expiry is commented out. See
   `backend/internal/service/jwt.go`, `backend/internal/middleware/middleware.go`,
@@ -269,3 +279,12 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
     bypass or regression. Fixture schemas were removed and the disposable external
     PostgreSQL cluster stopped. No existing database, API/worker startup, dependencies,
     infrastructure, or TA/admin/grading policy changed. Standalone downloads remain R10.
+- 2026-10-25 (R2): Added the requirement to commit completed fixes with their
+  tests/documentation. Replaced timestamp/filename storage keys with shared random
+  UUIDs across all providers; local writes cannot truncate an existing object.
+  Reproduced collisions before patching, then passed eleven provider regression
+  scenarios, full Go test/vet, both binary builds, and patch checks. Independent
+  review found no confirmed bypass or regression. R1 database tests skipped, and
+  frontend checks were not repeated. No dependencies, production services, databases,
+  or infrastructure were changed. Legacy normal keys remain supported; historical overwritten bytes
+  and failure-safe replacement are outside R2.

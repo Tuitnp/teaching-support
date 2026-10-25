@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -82,10 +81,13 @@ func (s *MinIOStorage) ensureBucket(ctx context.Context) error {
 
 // Upload uploads a file to MinIO
 func (s *MinIOStorage) Upload(ctx context.Context, fileBytes []byte, fileName string) (string, error) {
+	key, err := newObjectKey()
+	if err != nil {
+		return "", err
+	}
 	uploader := manager.NewUploader(s.Client)
-	key := fmt.Sprintf("%d-%s", time.Now().Unix(), fileName)
 
-	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(fileBytes),

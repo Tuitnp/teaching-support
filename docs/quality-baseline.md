@@ -7,7 +7,8 @@ The F1 tables below record results before application fixes. F4 subsequently cle
 frontend lint errors: current lint passes with 0 errors and 74 warnings; see the F4
 section below. Frontend tests are still not configured. R1 subsequently added
 PostgreSQL-backed submission authorization tests; see the R1 section for execution
-requirements and current results.
+requirements and current results. R2 added storage regression tests that run without
+external services or credentials; see its section below.
 Use the historical snapshot to distinguish existing debt from regressions; do not
 treat existing failures as permission to add new ones.
 
@@ -251,3 +252,57 @@ never calls application startup or AutoMigrate. It skips when the explicit test 
 is absent: a default successful Go command then proves compilation, not that R1's
 regression tests ran. Live storage, university login, Redis/worker, and deployment
 integration remain unverified.
+
+## R2 storage object isolation checks
+
+Measured: 2026-10-25 (Asia/Bangkok), on the previously measured Windows/Go host.
+New uploads in local, S3, and MinIO use the shared `newObjectKey` helper with the
+existing `google/uuid` dependency's cryptographically random UUID v4 generation.
+No new dependencies or schema changes were needed. Local writes use exclusive file
+creation to avoid truncating an existing object. Display filenames remain in
+`Attachment.FileName`; all existing read/delete paths and persisted keys are retained.
+
+Added [storage_test.go](../backend/internal/storage/storage_test.go). The suite
+exercises the actual adapters and SDK uploader with local temporary files and a
+loopback HTTP object fixture. It uses anonymous test clients, no cloud credentials,
+and no S3/MinIO server, bucket provisioning, database, API, or worker startup.
+
+Eleven provider scenarios passed:
+
+- Thirty-two concurrent uploads per provider, across two independent adapter
+  instances sharing the store, have distinct keys and retain their own contents.
+  Each key is downloaded and read; deleting one leaves every other payload intact.
+- S3 and MinIO each upload two concurrent same-name objects larger than 6 MiB through
+  the SDK multipart path, then pass the same retention/read/delete checks.
+- Every provider handles six filename edge cases (empty, repeated dots, both path
+  separator forms, Thai, and overlong names) and zero-byte uploads without deriving
+  storage paths from those names.
+- Every provider reads/downloads/deletes a seeded ordinary timestamp-prefixed legacy
+  object by its existing key.
+
+The pre-patch run failed with reused keys in every adapter, including multipart
+uploads; ordinary legacy-key controls passed. The post-patch suite passed. A fresh
+independent read-only candidate review found no confirmed bypass or regression.
+
+| Check | Actual command | Result |
+| --- | --- | --- |
+| Focused storage suite | `go test -mod=readonly -count=1 -v -run 'TestStorage' ./internal/storage` | Pass; all 11 provider scenarios |
+| Full Go tests | `go test -mod=readonly -count=1 ./...` | Pass; storage tests executed; R1 tests skipped without their explicit database URL |
+| Static analysis | `go vet -mod=readonly ./...` | Pass |
+| API binary | `go build -mod=readonly -o <external-results>/r2-server.exe ./cmd/server` | Pass; not executed |
+| Worker binary | `go build -mod=readonly -o <external-results>/r2-worker.exe ./cmd/worker` | Pass; not executed |
+| Patch hygiene | `git diff --check` | Pass |
+
+Commands ran from an external backend copy with `GOTOOLCHAIN=local`; process-local
+`TMP`/`TEMP` kept test files outside the repository. Environment files were excluded
+from the copy; no dependencies were installed. R1 database tests and frontend checks
+were not repeated because R2 changes neither route authorization nor frontend code.
+Only application source/tests and normal project documentation were added inside
+the repository.
+
+This prevents future same-name key collisions; it cannot reconstruct bytes already
+overwritten or separate historical records that share one key. Existing local
+read/delete rewriting of `..` in legacy keys is unchanged; new UUID keys contain no
+such sequences. These tests do not verify live S3/MinIO infrastructure, credentials,
+bucket initialization, or deployment behavior. Failure-safe submission replacement
+remains separate R6 work.

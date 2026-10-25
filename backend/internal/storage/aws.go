@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -22,10 +21,13 @@ func NewS3Storage(client *s3.Client, bucket string) *S3Storage {
 }
 
 func (s *S3Storage) Upload(ctx context.Context, fileBytes []byte, fileName string) (string, error) {
+	key, err := newObjectKey()
+	if err != nil {
+		return "", err
+	}
 	uploader := manager.NewUploader(s.Client)
-	key := fmt.Sprintf("%d-%s", time.Now().Unix(), fileName)
 
-	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(fileBytes),

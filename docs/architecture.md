@@ -48,6 +48,10 @@ not required to work on the current app.
 Canonical definitions: [models.go](../backend/internal/models/models.go). Treat
 GORM relationships as source declarations; the live schema has not been inspected.
 
+New uploads use random UUID object keys from [key.go](../backend/internal/storage/key.go)
+across all storage adapters. `Attachment.FileName` keeps the original display name;
+read/delete paths use the persisted `FileKey`, including existing timestamp keys.
+
 | Models | Relationship / ownership |
 | --- | --- |
 | `User`, `Course`, `CourseMember` | Course has a teacher and section metadata; membership links users to courses with role/status |
