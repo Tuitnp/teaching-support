@@ -207,3 +207,9 @@ func GetAssignmentOverride(assignmentID, userID string) (*models.AssignmentOverr
 func DeleteAssignmentOverride(override *models.AssignmentOverride) error {
 	return database.DB.Delete(override).Error
 }
+
+func GetOverridesByAssignment(assignmentID string) ([]models.AssignmentOverride, error) {
+	var overrides []models.AssignmentOverride
+	err := database.DB.Where("assignment_id = ?", assignmentID).Find(&overrides).Error
+	return overrides, err
+}

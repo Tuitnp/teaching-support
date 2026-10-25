@@ -26,9 +26,9 @@ function NaturalLanguageDateTimeInput({ value, setValue, placeholder }: NaturalL
       : ""
   
   const handleParse = () => {
-    if (!displayValue) return
+    if (text === null || !text) return
   
-    const parsed = parseDateTime(displayValue)
+    const parsed = parseDateTime(text)
     if (parsed) {
       setValue(parsed)
       setText(null)
@@ -94,6 +94,7 @@ export default function SmartDatetimePickerByTui({
           onChange={(d) => setValue(d)}
         />
       </ButtonGroup>
+      <p className="mt-1 text-xs text-muted-foreground">Asia/Bangkok (UTC+07:00)</p>
     </div>
   );
 }

@@ -5,7 +5,8 @@ Source commit: `ef15269d9c231af5913106353da445efa89a440b`.
 
 The F1 tables below record results before application fixes. F4 subsequently cleared
 frontend lint errors: current lint passes with 0 errors and 74 warnings; see the F4
-section below. Frontend tests are still not configured. R1 subsequently added
+section below. R8 adds focused Node 24 date/time tests; broader frontend component
+tests are not configured. R1 subsequently added
 PostgreSQL-backed submission authorization tests; see the R1 section for execution
 requirements and current results. R2 added storage regression tests that run without
 external services or credentials; see its section below.
@@ -522,3 +523,84 @@ tested copy. Database cleanup found zero fixture schemas; the external PostgreSQ
 cluster was stopped. All personal test workspaces and outputs stayed outside the
 repository. Retained-file cleanup and explicit deletion safety remain the separate
 R6 follow-up, and the R9 ID-validation gap remains open.
+
+## R8 deadline precision and stable lateness reporting
+
+Measured: 2026-10-25 (Asia/Bangkok). The user approved full UTC schedule
+responses, Bangkok display/edit, inclusive start/close and on-time exact due,
+extensions that never shorten original close, and reporting based on the latest
+current file upload/replacement. No schema or dependency change was required.
+
+`models/deadlines.go` shares effective deadlines and submission admission rules.
+Assignment list/detail/write responses now use UTC RFC3339Nano strings rather
+than date-only strings. Submission create/update checks start and effective close,
+and returns override lookup errors before storage or DB writes. Summaries preload
+attachments, fetch overrides in one assignment-scoped query, and use attachment
+`CreatedAt` instead of submission `UpdatedAt`. Summary and both CSV exports select
+the latest current file-bearing attempt. Missing historical timestamps produce
+`timing unavailable`; known timestamps win over unknown ones, with submission ID
+as a deterministic tie-break. This is not a historical timestamp reconstruction.
+
+The shared frontend formatter/parser/picker uses Bangkok time. The existing
+DayPicker timezone capability is reused. Direct local/TZDate time setters exposed
+an unrelated host-DST normalization in a regression check, so time changes use UTC
+arithmetic for the approved fixed UTC+07:00 offset. Untouched text fields are not
+reparsed on blur; untouched assignment edits retain the original API timestamp,
+including fractions below JavaScript's millisecond precision. Deliberate date/time
+changes use millisecond precision. Picker buttons have explicit button types and
+zone labels; the summary filter includes overdue and timing-unavailable statuses.
+
+Added normal application tests:
+
+- `backend/internal/models/deadlines_test.go`: offset/subsecond DTO round-trips,
+  exact start/due/close and adjacent nanosecond boundaries, extension close
+  preservation/extension, hidden assignments, deterministic current-file selection.
+- `backend/internal/service/deadlines_test.go`: exact due/personal due, grading
+  timestamp independence, unknown historical timing, selected scores and fileless
+  attempts.
+- `backend/internal/handler/deadlines_test.go`: ten real-router admission cases,
+  two fail-closed override lookup cases with unchanged data/storage, summary with
+  manual grading and simulated AI score/timestamp mutations, current-file
+  replacement, student list/detail extension responses, DB-precision edit
+  round-trip, and single-assignment/course CSV reporting.
+- `frontend/tests/datetime.test.mjs`: three Node `node:test` cases (21 assertions),
+  covering UTC/Bangkok/Los Angeles hosts, Bangkok midnight, natural-language
+  parsing, untouched fractional precision, and the host DST gap. Run with
+  `npm run test:datetime` on the verified Node 24 environment; no test dependency
+  was installed. Node emits an informational module-type detection warning for
+  importing the existing TypeScript module; app module configuration is unchanged.
+
+The initial check run completed Go tests/vet, both binary builds and frontend
+lint/typecheck/build before the last tests and UI precision refinements. A device
+freeze interrupted later verification; no completion/commit was claimed from
+those partial logs. Resumed checks run sequentially, with Go `-p 1` and
+`GOMAXPROCS=2`. Frontend build uses process-local `CIRCLE_NODE_TOTAL=3`, which the
+locked Next.js configuration maps to two page-generation workers; no application
+or deployment configuration was edited for resource limits.
+
+Resumed `npm run test:datetime`, `npm run lint` (0 errors, existing 74 warnings),
+`npm exec -- tsc --noEmit --incremental false`, and `npm run build` passed against
+current frontend source in the existing external workspace with locked installed
+dependencies. A temporary harness outside the repository used installed headless
+Chrome and synthetic intercepted API data. All three browser timezone scenarios
+passed Bangkok detail display, untouched blur/save with original microseconds,
+and hour/minute/calendar-day changes with the expected UTC multipart payloads.
+No live application API, university service, or AI provider was used.
+
+Final `go test -mod=readonly -p 1 -count=1 -timeout 120s ./...` and
+`go vet -mod=readonly -p 1 ./...` passed with the explicit disposable PostgreSQL
+URL, executing the new R8 and prior R1-R7 database/worker regressions. The focused
+HTTP run also passed. Entry points compiled as part of the full test run; both
+standalone binaries had built successfully before the interruption with the same
+runtime code. `git diff --check` passed. All 112 current frontend source/manifest/
+lock/test files matched the external checked copy byte-for-byte. The disposable
+PostgreSQL database had zero fixture schemas, then the cluster was stopped; neither
+test DB nor frontend dev port remained listening. The test browser was closed.
+Personal harnesses/profiles/results remained outside the repository. No packages,
+tools, migrations, production operations, or deployment changes were performed.
+
+Remaining limits: historical file timestamps cannot be inferred from grades;
+duplicate memberships/overrides, attempt limits, detail-page default attempt,
+and incomplete/not-started statistics remain R13. Input ordering/score validation
+remains R9; atomic override replacement remains R12. The API/worker application
+entry points were not started and no existing application database was migrated.

@@ -445,9 +445,10 @@ export default function Page() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All statuses</SelectItem>
-                      <SelectItem value="Submitted">Submitted</SelectItem>
-                      <SelectItem value="Incomplete">Incomplete</SelectItem>
-                      <SelectItem value="Not started">Not started</SelectItem>
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="no submitted">No submission</SelectItem>
+                      <SelectItem value="timing unavailable">Timing unavailable</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

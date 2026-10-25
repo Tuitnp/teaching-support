@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/ai"
 )
 
@@ -72,22 +74,20 @@ func ConvertAssignmentToResponse(
 		}
 	}
 
-	dueDate := a.DueDate
-	closeDate := a.CloseDate
-
+	var effectiveOverride *AssignmentOverride
 	if hasOverride {
-		dueDate = override.ExtendedDueDate
-		closeDate = override.ExtendedDueDate
+		effectiveOverride = override
 	}
+	dueDate, closeDate := EffectiveDeadlines(a, effectiveOverride)
 
 	return ResponseAssignment{
 		ID:          a.ID,
 		Title:       a.Title,
 		Description: a.Description,
 		Point:       a.Point,
-		StartDate:   a.StartDate.Format(layout),
-		DueDate:     dueDate.Format(layout),
-		CloseDate:   closeDate.Format(layout),
+		StartDate:   a.StartDate.UTC().Format(time.RFC3339Nano),
+		DueDate:     dueDate.UTC().Format(time.RFC3339Nano),
+		CloseDate:   closeDate.UTC().Format(time.RFC3339Nano),
 		Attachments: attachments,
 		Tags:        tagNames,
 		AIConfigID:  derefString(a.AIConfigID),
@@ -120,46 +120,7 @@ func ConvertDetailedAssignmentToResponse(
 	o *AssignmentOverride,
 ) ResponseDetailedAssignment {
 
-	tagNames := make([]string, len(a.Tags))
-	for i, tag := range a.Tags {
-		tagNames[i] = tag.Name
-	}
-
-	const layout = "2006-01-02"
-
-	attachments := make([]ResponseAttachment, len(a.Attachments))
-	for i, att := range a.Attachments {
-		attachments[i] = ResponseAttachment{
-			ID:        att.ID,
-			FileName:  att.FileName,
-			FileType:  att.FileType,
-			Size:      att.Size,
-			CreatedAt: att.CreatedAt.Format(layout),
-		}
-	}
-
-	dueDate := a.DueDate
-	closeDate := a.CloseDate
-
-	if o != nil {
-		dueDate = o.ExtendedDueDate
-		closeDate = o.ExtendedDueDate
-	}
-
-	assignmentResponse := ResponseAssignment{
-		ID:          a.ID,
-		Title:       a.Title,
-		Description: a.Description,
-		Point:       a.Point,
-		StartDate:   a.StartDate.Format(layout),
-		DueDate:     dueDate.Format(layout),
-		CloseDate:   closeDate.Format(layout),
-		Attachments: attachments,
-		Tags:        tagNames,
-		AIConfigID:  derefString(a.AIConfigID),
-		Prompt:      derefString(a.Prompt),
-		Visible:     a.Visible,
-	}
+	assignmentResponse := ConvertAssignmentToResponse(a, o != nil, o)
 
 	submissionResponses := make([]ResponseSubmission, len(*s))
 

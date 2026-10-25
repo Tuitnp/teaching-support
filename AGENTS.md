@@ -49,6 +49,7 @@ from the relevant directory:
 
 ```text
 frontend/: npm run lint
+frontend/: npm run test:datetime
 frontend/: npm exec -- tsc --noEmit --incremental false
 frontend/: npm run build
 backend/:  go test -mod=readonly ./...
@@ -58,8 +59,9 @@ backend/:  go vet -mod=readonly ./...
 Measured results are in `docs/quality-baseline.md`. Builds, typecheck, frontend lint,
 and Go vet passed; lint still has 74 warnings. Backend submission authorization and
 AI grading regression tests require `TEACHING_SUPPORT_TEST_DATABASE_URL` naming a disposable PostgreSQL
-database; see the baseline for setup. Without it, those tests skip. Frontend tests
-are not configured. Storage regression tests run without external services or
+database; see the baseline for setup. Without it, those tests skip. R8 adds focused
+frontend date/time tests using Node 24 built-in TypeScript support; broader component
+tests are not configured. Storage regression tests run without external services or
 credentials. A Go test command without executed tests proves compilation,
 not coverage. Run
 focused checks first, broader checks as appropriate, and `git diff --check` before

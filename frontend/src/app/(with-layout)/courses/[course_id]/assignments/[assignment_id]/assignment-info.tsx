@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Clock, FileText, Tag } from "lucide-react"
 import { TipTapTextEditor } from "@/components/ui/tiptap"
+import { formatDateTime } from "@/lib/datetime"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
@@ -53,15 +54,7 @@ type Comment = {
 export function AssignmentInfo({ assignment, studentSubmission }: AssignmentInfoProps) {
   const { user } = useAuth()
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
+  const formatDate = formatDateTime
 
   const handleDownloadAttachment = async (attachment: Attachment) => {
     if (!user?.token) return

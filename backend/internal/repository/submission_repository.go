@@ -124,6 +124,7 @@ func GetAssignmentSubmissions(assignmentID string) ([]models.Submission, error) 
 	var submissions []models.Submission
 
 	err := database.DB.
+		Preload("Attachment").
 		Where("assignment_id = ?", assignmentID).
 		Find(&submissions).Error
 

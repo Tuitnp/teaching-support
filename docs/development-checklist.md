@@ -173,14 +173,25 @@ Each checkbox should normally be a separate change with focused regression tests
 
 ## 3. Domain correctness and recovery
 
-- [ ] **R8: Preserve deadline precision and correct lateness reporting.** Assignment
-  DTOs drop time/timezone; statistics use `UpdatedAt` and omit student extensions.
+- [x] **R8: Preserve deadline precision and correct lateness reporting.** Assignment
+  DTOs retain full UTC instants; reporting uses current upload time and student extensions.
   See `backend/internal/models/convertor.go` and
   `backend/internal/service/service.go`.
   Acceptance: timestamp round-trips preserve instants; grading does not change
   submission lateness; start/due/close and override boundaries agree with the UI.
+  Evidence: approved UTC/Bangkok and inclusive boundary policy is recorded in
+  [domain-rules.md](domain-rules.md). Shared deadline rules prevent extensions
+  shortening close; create/update enforce start and fail on override lookup errors.
+  Summaries and both CSV exports select the latest current file using attachment
+  `CreatedAt`, independently of grading. Missing historical times are explicit.
+  Go model/service and PostgreSQL-backed HTTP/reporting regressions pass, along
+  with three Node date/time tests and three browser timezone scenarios. Full Go
+  tests/vet and frontend lint/typecheck/build pass; lint retains 74 warnings.
+  The interrupted run was resumed and final evidence is in
+  [quality-baseline.md](quality-baseline.md). No schema/dependency changes.
 - [ ] **R9: Enforce server-side input rules.** Cover assignment date ordering,
-  positive points, manual score bounds, submission start time, and file requirements.
+  positive points, manual score bounds, and file requirements. Submission start
+  enforcement is covered by R8.
   See `backend/internal/models/forms.go` and assignment/submission services.
   Acceptance: invalid direct API requests fail without partial writes; legitimate
   boundary values follow the documented domain policy.
@@ -208,13 +219,14 @@ Each checkbox should normally be a separate change with focused regression tests
   units and actual task deadline behavior before choosing a fix; runtime impact
   has not been tested.
 - [ ] **R13: Define attempt and statistics semantics.** Multiple submissions are
-  permitted and summary selection is not an explicit latest-attempt policy. Review
-  the `NotStarted` calculation and intended membership/override uniqueness.
+  permitted. R8 settles summary/CSV selection as latest current file; detail-page
+  default selection, attempt limits, `NotStarted`, and membership/override uniqueness
+  still need review.
   Acceptance: deterministic summaries and documented constraints; any schema change
   is reviewed separately with migration and rollback considerations.
 
 Decisions to settle alongside the relevant item: allowed attempts; upload versus
-submission timestamps; extension effects on due/close dates; manual-role precedence
+submission timestamps and extension effects on due/close (settled by R8); manual-role precedence
 and regrade authority (R4 settles human-over-AI precedence); TA rights; student Python execution; empty submissions;
 and whether text answers or multi-section distribution are actually required.
 Do not infer these requirements from the historical plan.

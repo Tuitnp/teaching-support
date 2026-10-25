@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import { formatDateTime } from "@/lib/datetime"
 import { useAuth } from "@/lib/auth-context"
 import { BreadcrumbNav } from "@/components/breadcrumb-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -185,13 +186,7 @@ export default function CourseDetailPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
-  }
+  const formatDate = formatDateTime
 
   const filteredAssignments = useMemo(() => {
     const normalizedQuery = searchTerm.trim().toLowerCase()

@@ -15,13 +15,15 @@ func buildAssignmentSummary(
 	assignment *models.Assignment,
 	courseMembers []models.CourseMember,
 	submissions []models.Submission,
+	overrides []models.AssignmentOverride,
 ) (*models.ResponseAssignmentSummary, error) {
 
 	totalStudents := int16(len(courseMembers))
 
-	submissionMap := make(map[string]*models.Submission)
-	for i := range submissions {
-		submissionMap[submissions[i].StudentID] = &submissions[i]
+	submissionMap := models.LatestFileSubmissions(submissions)
+	overrideMap := make(map[string]*models.AssignmentOverride, len(overrides))
+	for i := range overrides {
+		overrideMap[overrides[i].StudentID] = &overrides[i]
 	}
 
 	var submitted int16
@@ -42,10 +44,15 @@ func buildAssignmentSummary(
 
 		if ok && submission.AttachmentID != nil {
 
-			if submission.UpdatedAt.Before(assignment.DueDate) || submission.UpdatedAt.Equal(assignment.DueDate) {
-				status = "submitted"
-			} else {
+			due, _ := models.EffectiveDeadlines(assignment, overrideMap[cm.UserID])
+			uploadedAt := models.CurrentFileTime(submission)
+			switch {
+			case uploadedAt.IsZero():
+				status = "timing unavailable"
+			case uploadedAt.After(due):
 				status = "overdue"
+			default:
+				status = "submitted"
 			}
 
 			if submission.Point != nil {

@@ -25,20 +25,8 @@ func CreateSubmission(
 		return nil, err
 	}
 
-	if !assignment.Visible {
-		return nil, errors.ErrAssignmentNotAvailable
-	}
-
-	now := time.Now()
-	effectiveCloseDate := assignment.CloseDate
-
-	override, err := repository.GetAssignmentOverride(assignmentID, userID)
-	if err == nil && override != nil {
-		effectiveCloseDate = override.ExtendedDueDate
-	}
-
-	if effectiveCloseDate.Before(now) {
-		return nil, errors.ErrAssignmentNotAvailable
+	if err := checkSubmissionWindow(assignment, userID, time.Now()); err != nil {
+		return nil, err
 	}
 
 	var attachmentID *string
@@ -80,19 +68,8 @@ func UpdateSubmission(
 		return nil, err
 	}
 
-	if !submission.Assignment.Visible {
-		return nil, errors.ErrAssignmentNotAvailable
-	}
-
-	effectiveClose := submission.Assignment.CloseDate
-
-	override, err := repository.GetAssignmentOverride(submission.AssignmentID, userID)
-	if err == nil && override != nil {
-		effectiveClose = override.ExtendedDueDate
-	}
-
-	if effectiveClose.Before(time.Now()) {
-		return nil, errors.ErrAssignmentNotAvailable
+	if err := checkSubmissionWindow(&submission.Assignment, userID, time.Now()); err != nil {
+		return nil, err
 	}
 
 	if file != nil && file.Size > maxSubmissionFileSizeBytes {
@@ -294,4 +271,15 @@ func canGradeSubmission(role string, s *models.Submission) bool {
 	default:
 		return false
 	}
+}
+
+func checkSubmissionWindow(assignment *models.Assignment, userID string, now time.Time) error {
+	override, err := repository.GetAssignmentOverride(assignment.ID, userID)
+	if err != nil {
+		return err
+	}
+	if !models.AcceptsSubmissionAt(assignment, override, now) {
+		return errors.ErrAssignmentNotAvailable
+	}
+	return nil
 }

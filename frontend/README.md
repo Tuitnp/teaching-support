@@ -46,13 +46,16 @@ The commands above use process-local settings and create no environment file.
 ```powershell
 npm exec -- tsc --noEmit --incremental false
 npm run lint
+npm run test:datetime
 npm run build
 ```
 
 Typecheck and production build passed in F1 and F4. F4 cleared the 39 lint errors;
 lint now passes with 74 existing warnings, down from 79. Run it separately and avoid
-adding new warnings or suppressions. There is no `test` script or configured
-frontend test suite: `npm test`
+adding new warnings or suppressions. R8 adds `npm run test:datetime`, using Node 24
+built-in TypeScript support and `node:test` without another dependency. It checks Bangkok display/parsing, unchanged
+edit precision, and DST-safe time changes under three host timezones. There is no
+general `test` script or component test suite: `npm test`
 currently exits with "Missing script".
 
 The app loads JetBrains Mono through `next/font/google` in `src/app/layout.tsx`;

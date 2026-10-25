@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { serializeDateTime } from "@/lib/datetime"
 import { useAuth } from "@/lib/auth-context"
 import type { AICredential, AIConfig } from "@/lib/ai-types"
 import { Button } from "@/components/ui/button"
@@ -313,9 +314,9 @@ export function EditAssignmentDialog({
       formData.append("title", form.title)
       formData.append("description", form.description)
       formData.append("point", String(form.point))
-      formData.append("start", form.start_date.toISOString())
-      formData.append("due", form.due_date.toISOString())
-      formData.append("close", form.close_date.toISOString())
+      formData.append("start", serializeDateTime(form.start_date, assignment.start_date))
+      formData.append("due", serializeDateTime(form.due_date, assignment.due_date))
+      formData.append("close", serializeDateTime(form.close_date, assignment.close_date))
       if (form.ai_config_id) {
         formData.append("ai_config_id", form.ai_config_id)
       }

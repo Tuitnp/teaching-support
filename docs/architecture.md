@@ -129,8 +129,17 @@ Fiber errors directly, so not every failure shares that JSON contract.
    updates the owner-scoped reference, and reloads the response. Old bytes/records
    are retained; fileless updates detach only. This path never deletes storage and
    does not change grades/comments. Retained-file cleanup is separate work.
+   R8 checks visible assignments against inclusive start/effective close before
+   upload. [Deadline helpers](../backend/internal/models/deadlines.go) calculate
+   extended due and `max(original close, extended due)` for admission and DTOs.
+   Assignment schedule DTOs contain full UTC timestamps; UI display/edit uses
+   Asia/Bangkok through `frontend/src/lib/datetime.ts`.
 4. **Grade/report:** manual score/comment writes or worker writes -> PostgreSQL ->
    summary/export. See [summary helpers](../backend/internal/service/service.go).
+   R8 preloads current attachments and loads assignment overrides in one query.
+   Summary and CSV select the latest current file per student using attachment
+   `CreatedAt`; per-student due determines lateness independently of grading.
+   Missing historical upload times are reported explicitly, without a backfill.
 5. **AI job:** assignment service creates/resets job -> Asynq payload
    `{assignment_id,teacher_id,force_regrade}` -> worker loads attached submissions,
    decrypts provider key, reads files, batches ten answers, calls provider,

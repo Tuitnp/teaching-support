@@ -316,7 +316,7 @@ func CreateAssignmentOverride(
 	override := models.AssignmentOverride{
 		AssignmentID:    assignmentID,
 		StudentID:       form.StudentID,
-		ExtendedDueDate: form.ExtendedDueDate,
+		ExtendedDueDate: form.ExtendedDueDate.UTC(),
 	}
 
 	return repository.CreateAssignmentOverride(&override)
@@ -339,7 +339,11 @@ func GetAssignmentSummary(courseID, assignmentID string) (*models.ResponseAssign
 		return nil, err
 	}
 
-	return buildAssignmentSummary(assignment, courseMembers, submissions)
+	overrides, err := repository.GetOverridesByAssignment(assignmentID)
+	if err != nil {
+		return nil, err
+	}
+	return buildAssignmentSummary(assignment, courseMembers, submissions, overrides)
 }
 
 func AutoGradingAssignment(userID, courseID, assignmentID string) error {
@@ -462,13 +466,13 @@ func GetAssignmentsExport(courseID string) ([]byte, error) {
 	}
 
 	// Create a map of assignmentID -> submissions
-	submissionsMap := make(map[string][]models.Submission)
+	submissionsMap := make(map[string]map[string]*models.Submission)
 	for _, assignment := range assignments {
 		submissions, err := repository.GetAssignmentSubmissions(assignment.ID)
 		if err != nil {
 			return nil, err
 		}
-		submissionsMap[assignment.ID] = submissions
+		submissionsMap[assignment.ID] = models.LatestFileSubmissions(submissions)
 	}
 
 	// Calculate total max points for all assignments
@@ -504,14 +508,9 @@ func GetAssignmentsExport(courseID string) ([]byte, error) {
 
 		var totalPoints int16
 		for _, assignment := range assignments {
-			// Find submission for this student and assignment
-			submissions := submissionsMap[assignment.ID]
 			var earnedPoint *int16
-			for _, submission := range submissions {
-				if submission.StudentID == member.UserID {
-					earnedPoint = submission.Point
-					break
-				}
+			if submission := submissionsMap[assignment.ID][member.UserID]; submission != nil {
+				earnedPoint = submission.Point
 			}
 
 			if earnedPoint != nil {
