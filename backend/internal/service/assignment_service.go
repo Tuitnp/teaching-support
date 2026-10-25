@@ -97,7 +97,9 @@ func GetAssignments(userID, courseID, role string) (*[]models.ResponseAssignment
 		}
 
 		for _, o := range overrides {
-			overrideMap[o.AssignmentID] = o
+			if previous, ok := overrideMap[o.AssignmentID]; !ok || o.ID > previous.ID {
+				overrideMap[o.AssignmentID] = o
+			}
 		}
 	}
 

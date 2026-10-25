@@ -58,8 +58,8 @@ func GetCoursesByUser(userID string) ([]models.Course, error) {
 
 	err := database.DB.
 		Preload("Teacher").
-		Joins("JOIN course_members ON course_members.course_id = courses.id").
-		Where("course_members.user_id = ? AND course_members.status = ?", userID, "active").
+		Joins("JOIN course_members cm ON cm.course_id = courses.id").
+		Where("cm.user_id=? AND cm.status=?", userID, "active").Where(consistentMembershipSQL).Distinct("courses.*").
 		Find(&courses).Error
 
 	return courses, err

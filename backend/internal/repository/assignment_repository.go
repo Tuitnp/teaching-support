@@ -225,7 +225,7 @@ func GetOverridesByStudent(userID string) ([]models.AssignmentOverride, error) {
 	var overrides []models.AssignmentOverride
 
 	err := database.DB.
-		Where("student_id = ?", userID).
+		Where("student_id = ?", userID).Order("id DESC").
 		Find(&overrides).
 		Error
 
@@ -240,7 +240,7 @@ func GetAssignmentOverride(assignmentID, userID string) (*models.AssignmentOverr
 	var o models.AssignmentOverride
 
 	err := database.DB.
-		Where("assignment_id = ? AND student_id = ?", assignmentID, userID).
+		Where("assignment_id = ? AND student_id = ?", assignmentID, userID).Order("id DESC").
 		Take(&o).
 		Error
 

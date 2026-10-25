@@ -840,3 +840,27 @@ No frontend changes/checks, packages/tools, production services, real student da
 credentials, existing-DB mutations, migrations, infrastructure or deployment
 changes were involved. Q6 tracks personal template/library write atomicity;
 retained-file/shared-key cleanup and policy decisions remain separate work.
+
+
+## R13a duplicate memberships and extensions
+
+Measured: 2026-10-26 (Asia/Bangkok). Implemented the user-approved conflict policy:
+identical membership rows collapse; conflicting role/status rows deny nested
+course access, are excluded from course discovery/nonowner download references,
+and cause summaries/both exports to return 409. Uploaders retain file access.
+Existing teacher updates can resolve all matching role/status rows without deleting
+history. Enrollment now locks the course before checking/inserting a member.
+
+The actual AssignmentOverride model has no creation/update timestamps. After
+clarification, the user chose descending UUID as the stable canonical row; reads,
+list/summary maps and updates now agree. The row is updated in place under the
+existing assignment lock; other legacy rows remain. No timestamp, index, model
+migration or historical deletion was introduced.
+
+Focused handler tests cover identical/conflicting/resolved memberships, reports,
+owner/nonowner downloads, concurrent enrollment and extension creation, canonical
+extension identity and preservation of other rows. Existing nested scope,
+attachment-download and TA suites passed with an explicit disposable PostgreSQL
+URL. `go vet -mod=readonly -p 1 ./...` and `git diff --check` passed. Checks are
+sequential with GOMAXPROCS=2 and cached offline Go modules. Test DB/logs are outside
+the repository. R13 current-attempt/statistics/UI work remains in progress.

@@ -267,12 +267,22 @@ Each checkbox should normally be a separate change with focused regression tests
   F3's raw `Timeout(60)` was 60 ns, serialized to zero seconds, causing the locked
   worker's 30-minute fallback. R12 now explicitly sets 30 minutes and three retries;
   real task option values and cancellation behavior are covered by tests.
-- [ ] **R13: Define attempt and statistics semantics.** Multiple submissions are
-  permitted. R8 settles summary/CSV selection as latest current file; detail-page
-  default selection, attempt limits, `NotStarted`, and membership/override uniqueness
-  still need review.
+- [ ] **R13: Define attempt and statistics semantics.** Approved one current mutable
+  submission plus read-only student history; current identity is latest creation
+  time, then descending UUID. Repeated POST replaces that record under R6. Current
+  reports/AI grading exclude history, including after a current file is detached.
+  Approved activity-based Submitted/Incomplete/Not Started definitions and unique
+  active-student counts. [Full policy and constraints](attempt-policy.md).
+  - [x] R13a: Membership duplicate/conflict rules and serialized enrollment;
+    canonical extension is descending UUID, updated in place. No timestamps exist
+    on AssignmentOverride, so the originally proposed update-time rule was replaced
+    with the user's explicitly approved UUID rule. HTTP/report/download and real
+    concurrent enrollment/extension tests pass; prior access/TA checks pass.
+  - [ ] R13b: One current record, history guards and current-only reporting/grading.
+  - [ ] R13c: Detail defaults/history UI, statistics display and final verification.
   Acceptance: deterministic summaries and documented constraints; any schema change
-  is reviewed separately with migration and rollback considerations.
+  is reviewed separately with migration and rollback considerations. No schema
+  changes or historical deletion are authorized for this implementation.
 
 Decisions to settle alongside the relevant item: allowed attempts; upload versus
 submission timestamps and extension effects on due/close (settled by R8); manual-role precedence

@@ -23,7 +23,10 @@ func buildAssignmentSummary(
 	submissionMap := models.LatestFileSubmissions(submissions)
 	overrideMap := make(map[string]*models.AssignmentOverride, len(overrides))
 	for i := range overrides {
-		overrideMap[overrides[i].StudentID] = &overrides[i]
+		row := &overrides[i]
+		if previous := overrideMap[row.StudentID]; previous == nil || row.ID > previous.ID {
+			overrideMap[row.StudentID] = row
+		}
 	}
 
 	var submitted int16

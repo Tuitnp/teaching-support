@@ -6,7 +6,9 @@ import (
 
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/config"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/database"
+	apperrors "github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
+	"github.com/6510615294/Tech-Support-CN101/backend/internal/repository"
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -80,15 +82,11 @@ func CourseMiddleware(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	var role string
-
-	err := database.DB.
-		Model(&models.CourseMember{}).
-		Select("role").
-		Where("user_id = ? AND course_id = ? AND status = ?", userID, courseID, "active").
-		Take(&role).Error
-
+	role, err := repository.ActiveCourseRole(userID.(string), courseID)
 	if err != nil {
+		if err == apperrors.ErrMembershipConflict {
+			return c.Status(409).JSON(fiber.Map{"error": err.Error()})
+		}
 		return fiber.ErrForbidden
 	}
 

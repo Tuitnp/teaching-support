@@ -57,7 +57,7 @@ func CreateCourse(userID, role string, form *models.CourseForm) (*models.Respons
 	}
 
 	fmt.Println(form)
-	
+
 	member := &models.CourseMember{
 		UserID:   userID,
 		CourseID: courseID,
@@ -224,30 +224,14 @@ func EnrollCourse(
 			continue
 		}
 
-		exists, err := repository.IsUserInCourse(user.ID, courseID)
+		created, err := repository.EnrollCourseMember(&models.CourseMember{UserID: user.ID, CourseID: courseID, Role: enrollment.CourseRole, Status: "active"})
 		if err != nil {
 			result.Status = "Error"
-			results.EnrollmentResult = append(results.EnrollmentResult, result)
-			continue
 		}
 
-		if exists {
+		if err == nil && !created {
 			result.Status = "Already In Course"
-			results.EnrollmentResult = append(results.EnrollmentResult, result)
-			continue
 		}
-
-		err = repository.CreateCourseMember(&models.CourseMember{
-			UserID:   user.ID,
-			CourseID: courseID,
-			Role:     enrollment.CourseRole,
-			Status:   "active",
-		})
-
-		if err != nil {
-			result.Status = "Error"
-		}
-
 		results.EnrollmentResult = append(results.EnrollmentResult, result)
 	}
 

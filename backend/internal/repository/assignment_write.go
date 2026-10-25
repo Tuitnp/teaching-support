@@ -87,7 +87,7 @@ func ReplaceAssignmentOverride(courseID, assignmentID, studentID string, due tim
 		if due.Before(assignment.DueDate) {
 			return errors.ErrDueDateBeforeAssignment
 		}
-		err = tx.Where("assignment_id=? AND student_id=?", assignmentID, studentID).Take(&override).Error
+		err = tx.Where("assignment_id=? AND student_id=?", assignmentID, studentID).Order("id DESC").Take(&override).Error
 		if stderrors.Is(err, gorm.ErrRecordNotFound) {
 			override = models.AssignmentOverride{AssignmentID: assignmentID, StudentID: studentID, ExtendedDueDate: due}
 			return tx.Create(&override).Error

@@ -139,9 +139,10 @@ func GetAttachmentAccessReferences(userID, attachmentID string) ([]AttachmentAcc
 		WHERE s.assignment_id = a.id AND s.attachment_id = ?)`
 	err := database.DB.
 		Table("assignments a").
-		Select("cm.role, a.visible, a.start_date, "+handout+" AS handout", attachmentID).
+		Select("DISTINCT cm.role, a.visible, a.start_date, "+handout+" AS handout", attachmentID).
 		Joins("JOIN course_members cm ON cm.course_id = a.course_id").
 		Where("cm.user_id = ? AND cm.status = ?", userID, models.StatusActive).
+		Where(consistentMembershipSQL).
 		Where("("+handout+" OR "+submission+")", attachmentID, attachmentID).
 		Scan(&references).Error
 	return references, err
