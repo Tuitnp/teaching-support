@@ -179,7 +179,7 @@ func TestAssignmentScheduleAPIAndEditRoundTrip(t *testing.T) {
 	parsedDue, _ := time.Parse(time.RFC3339Nano, response.DueDate)
 	parsedClose, _ := time.Parse(time.RFC3339Nano, response.CloseDate)
 	if _, err := service.UpdateAssignment("COURSA", f.a1, f.teacher, &models.AssignmentForm{
-		StartDate: parsedStart, DueDate: parsedDue, CloseDate: parsedClose, Visible: true,
+		StartDate: &parsedStart, DueDate: &parsedDue, CloseDate: &parsedClose, Visible: true,
 	}, nil); err != nil {
 		t.Fatal(err)
 	}

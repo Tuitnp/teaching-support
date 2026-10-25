@@ -29,8 +29,8 @@ func CreateAttachments(
 	userID string,
 	files []*multipart.FileHeader,
 ) error {
-	if len(files) > 5 {
-		return errors.ErrTooManyAttachments
+	if err := validateAttachmentInputs(nil, files); err != nil {
+		return err
 	}
 
 	for _, file := range files {
@@ -43,8 +43,11 @@ func CreateAttachments(
 			return err
 		}
 
-		data, _ := io.ReadAll(src)
+		data, readErr := io.ReadAll(src)
 		src.Close()
+		if readErr != nil {
+			return readErr
+		}
 
 		fileKey, err := storage.UploadFile(data, file.Filename)
 		if err != nil {

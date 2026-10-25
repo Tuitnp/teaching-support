@@ -16,6 +16,10 @@ func CreateAssignment(assignment *models.Assignment) error {
 }
 
 func GetAssignment(courseID, assignmentID string) (*models.Assignment, error) {
+	if err := models.ValidateUUIDs(assignmentID); err != nil {
+		return nil, err
+	}
+
 	var assignment models.Assignment
 
 	err := database.DB.
@@ -31,6 +35,10 @@ func GetAssignment(courseID, assignmentID string) (*models.Assignment, error) {
 }
 
 func GetAssignmentWithRelations(courseID, assignmentID string) (*models.Assignment, error) {
+	if err := models.ValidateUUIDs(assignmentID); err != nil {
+		return nil, err
+	}
+
 	var assignment models.Assignment
 
 	err := database.DB.
@@ -48,6 +56,10 @@ func GetAssignmentWithRelations(courseID, assignmentID string) (*models.Assignme
 }
 
 func GetAssignmentWithAIConfig(assignmentID string) (*models.Assignment, error) {
+	if err := models.ValidateUUIDs(assignmentID); err != nil {
+		return nil, err
+	}
+
 	var assignment models.Assignment
 
 	err := database.DB.
@@ -79,6 +91,10 @@ func GetAssignmentWithAIConfig(assignmentID string) (*models.Assignment, error) 
 // }
 
 func GetVisibleAssignment(courseID, assignmentID string) (*models.Assignment, error) {
+	if err := models.ValidateUUIDs(assignmentID); err != nil {
+		return nil, err
+	}
+
 	var assignment models.Assignment
 
 	err := database.DB.
@@ -125,11 +141,34 @@ func GetVisibleAssignments(courseID string) ([]models.Assignment, error) {
 }
 
 func UpdateAssignment(id string, updates map[string]any) error {
-	return database.DB.
-		Model(&models.Assignment{}).
-		Where("id = ?", id).
-		Updates(updates).
-		Error
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		assignment, err := lockAssignment(tx, id)
+		if err != nil {
+			return err
+		}
+		previousMaximum := assignment.Point
+		if value, ok := updates["point"].(int16); ok {
+			assignment.Point = value
+		}
+		if value, ok := updates["start_date"].(time.Time); ok {
+			assignment.StartDate = value
+		}
+		if value, ok := updates["due_date"].(time.Time); ok {
+			assignment.DueDate = value
+		}
+		if value, ok := updates["close_date"].(time.Time); ok {
+			assignment.CloseDate = value
+		}
+		if err := models.ValidateAssignmentValues(assignment.Point, assignment.StartDate, assignment.DueDate, assignment.CloseDate); err != nil {
+			return err
+		}
+		if assignment.Point < previousMaximum {
+			if err := checkMaximumPoints(tx, id, assignment.Point); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&models.Assignment{}).Where("id = ?", id).Updates(updates).Error
+	})
 }
 
 func DeleteAssignment(assignment *models.Assignment) error {
@@ -189,6 +228,9 @@ func GetOverridesByStudent(userID string) ([]models.AssignmentOverride, error) {
 }
 
 func GetAssignmentOverride(assignmentID, userID string) (*models.AssignmentOverride, error) {
+	if err := models.ValidateUUIDs(assignmentID, userID); err != nil {
+		return nil, err
+	}
 
 	var o models.AssignmentOverride
 

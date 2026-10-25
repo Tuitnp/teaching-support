@@ -19,7 +19,8 @@ the audit was static and did not verify production behavior.
 The baseline is recorded in [quality-baseline.md](quality-baseline.md). Typecheck,
 frontend build, Go compilation, Go vet, and both Go binary builds passed. F4 cleared
 all 39 frontend lint errors and removed five warnings: lint now passes with 74
-warnings and no new warning fingerprints. Frontend tests are not configured. R1
+warnings and no new warning fingerprints. R8 adds focused frontend date/time tests;
+component tests are not configured. R1
 adds backend submission authorization tests that require an explicit disposable
 PostgreSQL test URL; without it, tests skip. F4 added focused frontend typing/hook/ref
 fixes; R1 scopes nested submission routes. R2 isolates new storage uploads and adds
@@ -189,16 +190,27 @@ Each checkbox should normally be a separate change with focused regression tests
   tests/vet and frontend lint/typecheck/build pass; lint retains 74 warnings.
   The interrupted run was resumed and final evidence is in
   [quality-baseline.md](quality-baseline.md). No schema/dependency changes.
-- [ ] **R9: Enforce server-side input rules.** Cover assignment date ordering,
+- [x] **R9: Enforce server-side input rules.** Cover assignment date ordering,
   positive points, manual score bounds, and file requirements. Submission start
   enforcement is covered by R8.
   See `backend/internal/models/forms.go` and assignment/submission services.
   Acceptance: invalid direct API requests fail without partial writes; legitimate
   boundary values follow the documented domain policy.
-  R7 verified another existing validation gap: an omitted/empty `credential_id`
-  during config update reaches a UUID query and returns generic 500. Validate IDs
-  explicitly when implementing this item; do not treat the R7 scope fix as input
-  validation coverage.
+  Evidence: approved rules are in [domain-rules.md](domain-rules.md). Creation
+  requires positive maximum points and ordered nonzero dates; date/point edits
+  validate merged values. Grades require an explicit integer in [0, maximum].
+  Maximum reductions below existing grades are rejected under a shared assignment
+  lock with manual/AI writes. Whole attachment batches and owned references are
+  checked before uploads/writes. New submissions and supplied replacements require
+  one nonempty file; fileless updates retain R6 detach semantics. Relevant malformed
+  UUIDs and omitted AI config credential IDs return 400 before SQL.
+  Six PostgreSQL-backed R9 test groups cover HTTP validation, no-side-effect
+  snapshots, inclusive limits, ownership, IDs, and actual concurrent write blocking.
+  Full Go tests (including R1-R8) and vet passed with the disposable test URL;
+  `git diff --check` passed. See [quality-baseline.md](quality-baseline.md).
+  Runtime-failure atomicity of full edits and manual score/comment remains R12;
+  existing records are not backfilled or rescaled.
+
 - [ ] **R10: Make attachment permissions consistent.** Downloads omit assignment
   visibility/start checks; non-student membership checks omit active status. See
   `backend/internal/service/attachment_service.go` and
@@ -227,7 +239,7 @@ Each checkbox should normally be a separate change with focused regression tests
 
 Decisions to settle alongside the relevant item: allowed attempts; upload versus
 submission timestamps and extension effects on due/close (settled by R8); manual-role precedence
-and regrade authority (R4 settles human-over-AI precedence); TA rights; student Python execution; empty submissions;
+and regrade authority (R4 settles human-over-AI precedence); TA rights; student Python execution; submission file presence (settled by R9);
 and whether text answers or multi-section distribution are actually required.
 Do not infer these requirements from the historical plan.
 
@@ -374,3 +386,12 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   no confirmed issue. Documented existing omitted-credential 500 under R9; preserved
   other field/permission behavior. All 83 backend files matched the tested copy;
   fixture schemas were removed and the disposable PostgreSQL cluster stopped.
+
+- 2026-10-25 (R9): Enforced the user-approved date/point, grade, file and reference
+  rules before mutation; preserved omitted date/point fields and R6 fileless detach.
+  Serialized assignment reductions with manual/AI grade persistence and rechecked
+  bounds at write time. Six focused HTTP/DB regression groups and all prior backend
+  tests passed, as did vet and diff checks. An initial full run caught an R4 no-op
+  regression for missing assignments; that contract was restored and the full run
+  passed. Disposable test schemas were removed and PostgreSQL stopped. No packages,
+  schema, infrastructure, deployment or frontend code changed.

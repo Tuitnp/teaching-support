@@ -109,7 +109,7 @@ func TestAIConfigUpdateScope(t *testing.T) {
 				want = 404
 			case "omitted-credential":
 				credential = ""
-				want = 500 // Existing empty UUID validation is separate R9 work.
+				want = 400 // R9 rejects missing credentials before querying PostgreSQL.
 			case "student":
 				actor = f.student
 				want = 403
@@ -154,19 +154,7 @@ func TestAIConfigUpdateScope(t *testing.T) {
 			if scenario == "malformed" {
 				body = []byte("{")
 			}
-			if scenario == "omitted-credential" {
-				// A malformed UUID aborts the outer fixture transaction; production
-				// runs this lookup in autocommit. Isolate that existing failure.
-				if err := f.db.SavePoint("r7_empty_credential").Error; err != nil {
-					t.Fatal(err)
-				}
-			}
 			status, data := f.patch(t, actor, target, string(body))
-			if scenario == "omitted-credential" {
-				if err := f.db.RollbackTo("r7_empty_credential").Error; err != nil {
-					t.Fatal(err)
-				}
-			}
 			cleanup()
 			if status != want {
 				t.Fatalf("status=%d want=%d: %s", status, want, data)

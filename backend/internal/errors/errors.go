@@ -10,6 +10,11 @@ func (e *AppError) Error() string {
 }
 
 var (
+	ErrInvalidPoints           = &AppError{400, "maximum points must be a positive integer"}
+	ErrInvalidSchedule         = &AppError{400, "assignment dates must satisfy start < due <= close"}
+	ErrInvalidGrade            = &AppError{400, "grade must be an integer between zero and the assignment maximum"}
+	ErrMaximumBelowGrade       = &AppError{400, "maximum points cannot be lower than an existing grade"}
+	ErrSubmissionFileRequired  = &AppError{400, "a nonempty submission file is required"}
 	ErrAIError                = &AppError{429, "ai error"}
 	ErrAIGradingLimit         = &AppError{429, "ai grading reach limit(1)"}
 	ErrUserNotFound           = &AppError{404, "user not found"}

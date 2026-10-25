@@ -33,6 +33,10 @@ func GetAssignmentTemplates(userID string) ([]models.AssignmentTemplate, error) 
 }
 
 func GetAssignmentTemplate(userID, templateID string) (*models.AssignmentTemplate, error) {
+	if err := models.ValidateUUIDs(templateID); err != nil {
+		return nil, err
+	}
+
 	var template models.AssignmentTemplate
 
 	err := database.DB.

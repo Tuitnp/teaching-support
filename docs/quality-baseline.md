@@ -604,3 +604,74 @@ duplicate memberships/overrides, attempt limits, detail-page default attempt,
 and incomplete/not-started statistics remain R13. Input ordering/score validation
 remains R9; atomic override replacement remains R12. The API/worker application
 entry points were not started and no existing application database was migrated.
+
+## R9 server-side input validation
+
+Measured: 2026-10-25 (Asia/Bangkok). The user approved positive integer maximum
+points, `start < due <= close`, explicit integer grades in [0, maximum], existing
+five-file/10 MiB attachment and 5 MiB submission limits, nonempty submission uploads,
+and rejection of maximum reductions below existing grades without rescaling.
+
+Transport date/point fields now distinguish omission from explicit zero. Create
+validates required values; edits validate the merged date/point values. Assignment
+and template attachment validation runs before scalar writes/uploads, checks the
+entire batch, and validates distinct owned attachment IDs and optional owned AI
+configs. General uploads reject invalid later files before uploading the first.
+Submission creation requires one nonempty file; supplied replacements must also
+be nonempty. A fileless update still detaches and retains grades/comments (R6).
+UUID checks reject malformed/empty identifiers and URN syntax before PostgreSQL;
+canonical uppercase UUIDs remain supported. The R7 omitted-credential 500 is now
+400 and its regression expectation was updated without changing ownership rules.
+
+Assignment edits and manual/AI grade writes acquire the assignment row lock before
+submission writes. Repository checks use current dates/points and existing grades
+under that lock, preventing races between partial edits, reductions and grades.
+Storage/provider calls are outside these short transactions. Ineligible/missing
+AI saves retain R4's no-op behavior; eligible stale scores exceeding a newly
+reduced maximum fail without changing scores/comments. Existing historical grades
+are not normalized by unrelated edits or by increasing/keeping a maximum.
+
+Added `backend/internal/handler/input_validation_test.go`, reusing the actual
+router and explicitly disposable PostgreSQL fixture. Its six groups cover:
+
+- Assignment/template create/edit: missing, zero, negative, fractional/overflow
+  points; missing/bad/ordered dates; partial fields; equality at close/due;
+  32767 maximum; count/mixed-reference/size limits; malformed, foreign, duplicate
+  and missing references; owned AI configs; maximum reductions and legacy scores.
+- Both manual grade routes: omitted/null, negative, above-max, fractional/overflow
+  rejection, and accepted zero/full points with persisted grades.
+- Submission create/update: missing, empty, duplicate, valid, exact 5 MiB and
+  oversized files. Broken multipart is rejected by fasthttp before routing;
+  its transport error is checked separately from handler HTTP responses.
+- General attachment uploads: five files, exact 10 MiB, oversized later file and
+  six-file rejection. Invalid cases require unchanged DB/storage snapshots.
+- Malformed assignment/submission/template/attachment/config/credential IDs,
+  including missing and URN credentials, return 400 without mutation.
+- Four concurrent-write cases observe real PostgreSQL blocking, then prove bounds
+  are rechecked after the competing transaction commits: maximum versus manual/AI
+  score, existing grade versus reduction, and overlapping partial date edits.
+
+The test app's body limit now matches the existing production 60 MiB setting so
+exact 5/10 MiB application boundaries execute. The R1 allowed-create control now
+supplies a file; R8/worker direct callers use presence-aware forms. Permission,
+replacement, human-grade protection and strict AI mapping assertions remain intact.
+
+An initial compile check caught and resolved a UUID variable-name error. Initial
+multipart test expectations were corrected to account for transport rejection.
+The first full run then exposed a missing-assignment AI no-op regression caused
+by locking before the conditional save; no-op/eligibility handling was restored.
+Final `go test -mod=readonly -p 1 -count=1 -timeout 120s ./...` and
+`go vet -mod=readonly -p 1 ./...` passed with the disposable PostgreSQL URL and
+`GOMAXPROCS=2`. All prior R1-R8 suites executed, including worker concurrency tests;
+entry points compiled. The final focused rerun also passed all six groups and
+131 cases with no skips, including exact persisted boundary values and preserved
+historical grades. `git diff --check` passed. No frontend source changed, so
+frontend checks were not repeated; its last measured lint remains 74 warnings.
+
+The disposable test database had zero fixture schemas and was stopped afterward;
+its port no longer listened. Personal scratch/logs stayed outside the repository.
+No packages/tools, application startup, production services, real credentials or
+student data, migrations, infrastructure or deployment changes were involved.
+Full edit and manual score/comment atomicity after runtime I/O/DB failures, and
+broader job retry/recovery remain R12. Assignment-level grade serialization adds
+short DB contention within one assignment; it holds no lock during AI requests.

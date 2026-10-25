@@ -23,17 +23,17 @@ type CourseForm struct {
 }
 
 type AssignmentForm struct {
-	Title            string    `form:"title"`
-	Description      string    `form:"description"`
-	Point            int16     `form:"point"`
-	StartDate        time.Time `form:"start"`
-	DueDate          time.Time `form:"due"`
-	CloseDate        time.Time `form:"close"`
-	Tags             []string  `form:"tags"`
-	Attachments      []string  `form:"attachments"`
-	AIConfigID    	 *string   `form:"ai_config_id"`
-	Prompt 	 		 *string   `form:"prompt"`
-	Visible          bool      `form:"visible"`
+	Title       string     `form:"title"`
+	Description string     `form:"description"`
+	Point       *int16     `form:"point"`
+	StartDate   *time.Time `form:"start"`
+	DueDate     *time.Time `form:"due"`
+	CloseDate   *time.Time `form:"close"`
+	Tags        []string   `form:"tags"`
+	Attachments []string   `form:"attachments"`
+	AIConfigID  *string    `form:"ai_config_id"`
+	Prompt      *string    `form:"prompt"`
+	Visible     bool       `form:"visible"`
 }
 
 type SubmissionForm struct {
@@ -46,11 +46,11 @@ type CommentForm struct {
 }
 
 type GradeForm struct {
-	Point int16 `json:"point" form:"point"`
+	Point *int16 `json:"point" form:"point"`
 }
 
 type GradeAndCommentForm struct {
-	Point   int16  `json:"point" form:"point"`
+	Point   *int16 `json:"point" form:"point"`
 	Comment string `json:"comment" form:"comment"`
 	Visible bool   `json:"visible" form:"visible"`
 }
@@ -80,13 +80,13 @@ type AssignmentOverrideForm struct {
 }
 
 type AssignmentTemplateForm struct {
-	Title            string   `json:"title" form:"title"`
-	Description      string   `json:"description" form:"description"`
-	Point            int16    `json:"point" form:"point"`
-	Tags             []string `json:"tags" form:"tags"`
-	Attachments      []string `json:"attachments" form:"attachments"`
-	AIConfigID    	 *string   `form:"ai_config_id"`
-	Prompt 	 		 *string   `form:"prompt"`
+	Title       string   `json:"title" form:"title"`
+	Description string   `json:"description" form:"description"`
+	Point       *int16   `json:"point" form:"point"`
+	Tags        []string `json:"tags" form:"tags"`
+	Attachments []string `json:"attachments" form:"attachments"`
+	AIConfigID  *string  `form:"ai_config_id"`
+	Prompt      *string  `form:"prompt"`
 }
 
 type AICredentialForm struct {

@@ -264,6 +264,10 @@ func handleAttachments(
 	files []*multipart.FileHeader,
 ) ([]models.Attachment, error) {
 
+	if err := validateAttachmentInputs(existingIDs, files); err != nil {
+		return nil, err
+	}
+
 	var attachments []models.Attachment
 
 	existing, err := repository.GetAttachmentsByIDs(userID, existingIDs)
@@ -287,8 +291,11 @@ func handleAttachments(
 			return nil, err
 		}
 
-		data, _ := io.ReadAll(src)
+		data, readErr := io.ReadAll(src)
 		src.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
 
 		fileKey, err := storage.UploadFile(data, file.Filename)
 		if err != nil {

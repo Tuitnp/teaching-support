@@ -13,8 +13,11 @@ func CreateAssignmentTemplate(
 	form *models.AssignmentTemplateForm,
 	files []*multipart.FileHeader,
 ) (*models.ResponseAssignmentTemplate, error) {
-	if len(form.Attachments)+len(files) > 5 {
-		return nil, errors.ErrTooManyAttachments
+	if form.Point == nil || *form.Point <= 0 {
+		return nil, errors.ErrInvalidPoints
+	}
+	if err := validateAIReference(userID, form.AIConfigID); err != nil {
+		return nil, err
 	}
 
 	attachments, err := handleAttachments(userID, form.Attachments, files)
@@ -28,21 +31,21 @@ func CreateAssignmentTemplate(
 	}
 
 	template := models.AssignmentTemplate{
-		Title:       		form.Title,
-		Description: 		form.Description,
-		Point:       		form.Point,
-		Attachments: 		attachments,
-		Tags:        		tags,
-		AIConfigID: 		form.AIConfigID,
-		Prompt:     		form.Prompt,
-		CreatedBy:   		userID,
+		Title:       form.Title,
+		Description: form.Description,
+		Point:       *form.Point,
+		Attachments: attachments,
+		Tags:        tags,
+		AIConfigID:  form.AIConfigID,
+		Prompt:      form.Prompt,
+		CreatedBy:   userID,
 	}
-	
-	_, err = repository.CreateAssignmentTemplate(&template);
+
+	_, err = repository.CreateAssignmentTemplate(&template)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	response := models.ConvertAssignmentTemplateToResponse(&template)
 
 	return response, nil
@@ -97,40 +100,46 @@ func UpdateAssignmentTemplate(
 		return nil, err
 	}
 
+	point := template.Point
+	if form.Point != nil {
+		point = *form.Point
+	}
+	if point <= 0 {
+		return nil, errors.ErrInvalidPoints
+	}
+	if err := validateAIReference(userID, form.AIConfigID); err != nil {
+		return nil, err
+	}
+	attachments, err := handleAttachments(userID, form.Attachments, files)
+	if err != nil {
+		return nil, err
+	}
+
 	updates := map[string]any{}
 
 	if form.Title != "" {
 		updates["title"] = form.Title
 	}
 
-	if form.Point > 0 {
-		updates["point"] = form.Point
+	if form.Point != nil {
+		updates["point"] = *form.Point
 	}
-	
+
 	updates["description"] = form.Description
 
 	if form.AIConfigID != nil {
 		updates["ai_config_id"] = form.AIConfigID
 	}
-	
+
 	if form.Prompt != nil {
 		updates["prompt"] = form.Prompt
 	}
-	
+
 	if len(updates) > 0 {
 		if err := repository.UpdateAssignmentTemplate(templateID, updates); err != nil {
 			return nil, err
 		}
 	}
-	attachments, err := handleAttachments(
-		userID,
-		form.Attachments,
-		files,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := repository.ReplaceAssignmentTemplateAttachments(
 		templateID,
 		attachments,

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"mime/multipart"
-
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/logger"
@@ -21,9 +19,9 @@ func RegisterTemplateRoutes(app fiber.Router) {
 
 func createAssignmentTemplate(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("assignment_template_create_attempt")
-	
+
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("user_role").(string)
 
@@ -42,11 +40,9 @@ func createAssignmentTemplate(c fiber.Ctx) error {
 		return SendError(c, errors.ErrBadRequest)
 	}
 
-	multipartForm, _ := c.MultipartForm()
-
-	var files []*multipart.FileHeader
-	if multipartForm != nil {
-		files = multipartForm.File["files"]
+	files, err := uploadedFiles(c, "files")
+	if err != nil {
+		return SendError(c, err)
 	}
 
 	template, err := service.CreateAssignmentTemplate(userID, &form, files)
@@ -58,7 +54,7 @@ func createAssignmentTemplate(c fiber.Ctx) error {
 	}
 
 	log.Info("assignment_template_create_success")
-	
+
 	return c.JSON(template)
 }
 
@@ -113,9 +109,9 @@ func getAssignmentTemplate(c fiber.Ctx) error {
 
 func updateAssignmentTemplate(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("assignment_template_update_attempt")
-	
+
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("user_role").(string)
 	templateID := c.Params("template_id")
@@ -127,11 +123,9 @@ func updateAssignmentTemplate(c fiber.Ctx) error {
 		return SendError(c, errors.ErrForbidden)
 	}
 
-	multipartForm, _ := c.MultipartForm()
-
-	var files []*multipart.FileHeader
-	if multipartForm != nil {
-		files = multipartForm.File["files"]
+	files, err := uploadedFiles(c, "files")
+	if err != nil {
+		return SendError(c, err)
 	}
 
 	var form models.AssignmentTemplateForm
@@ -153,7 +147,7 @@ func updateAssignmentTemplate(c fiber.Ctx) error {
 	log.Info("assignment_template_update_success",
 		"template_id", templateID,
 	)
-	
+
 	return c.JSON(template)
 }
 

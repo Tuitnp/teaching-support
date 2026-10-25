@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"mime/multipart"
-
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/logger"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
@@ -26,9 +24,9 @@ func RegisterAssignmentRoutes(app fiber.Router) {
 
 func createAssignment(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("assignment_create_attempt")
-	
+
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("course_role").(string)
 	courseID := c.Params("course_id")
@@ -48,11 +46,9 @@ func createAssignment(c fiber.Ctx) error {
 		return SendError(c, errors.ErrBadRequest)
 	}
 
-	multipartForm, _ := c.MultipartForm()
-
-	var files []*multipart.FileHeader
-	if multipartForm != nil {
-		files = multipartForm.File["files"]
+	files, err := uploadedFiles(c, "files")
+	if err != nil {
+		return SendError(c, err)
 	}
 
 	assignment, err := service.CreateAssignment(courseID, userID, &form, files)
@@ -66,7 +62,7 @@ func createAssignment(c fiber.Ctx) error {
 	log.Info("assignment_create_success",
 		"course_id", courseID,
 	)
-	
+
 	return c.JSON(assignment)
 }
 
@@ -106,9 +102,9 @@ func getAssignment(c fiber.Ctx) error {
 
 func updateAssignment(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("assignment_update_attempt")
-	
+
 	courseID := c.Params("course_id")
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("course_role").(string)
@@ -121,11 +117,9 @@ func updateAssignment(c fiber.Ctx) error {
 		return SendError(c, errors.ErrForbidden)
 	}
 
-	multipartForm, _ := c.MultipartForm()
-
-	var files []*multipart.FileHeader
-	if multipartForm != nil {
-		files = multipartForm.File["files"]
+	files, err := uploadedFiles(c, "files")
+	if err != nil {
+		return SendError(c, err)
 	}
 
 	var form models.AssignmentForm
@@ -148,7 +142,7 @@ func updateAssignment(c fiber.Ctx) error {
 		"course_id", courseID,
 		"assignment_id", assignmentID,
 	)
-	
+
 	return c.JSON(data)
 }
 

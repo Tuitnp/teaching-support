@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"mime/multipart"
 
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/logger"
@@ -21,9 +20,9 @@ func RegisterAttachmentRoutes(app fiber.Router) {
 
 func createAttachments(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("attachments_create_attempt")
-	
+
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("user_role").(string)
 
@@ -34,14 +33,12 @@ func createAttachments(c fiber.Ctx) error {
 		return SendError(c, errors.ErrForbidden)
 	}
 
-	multipartForm, _ := c.MultipartForm()
-
-	var files []*multipart.FileHeader
-	if multipartForm != nil {
-		files = multipartForm.File["files"]
+	files, err := uploadedFiles(c, "files")
+	if err != nil {
+		return SendError(c, err)
 	}
 
-	err := service.CreateAttachments(userID, files)
+	err = service.CreateAttachments(userID, files)
 	if err != nil {
 		log.Error("attachments_create_failed",
 			"error", err,
@@ -50,7 +47,7 @@ func createAttachments(c fiber.Ctx) error {
 	}
 
 	log.Info("attachments_create_success")
-	
+
 	return c.JSON(fiber.Map{
 		"message": "attachments created",
 	})

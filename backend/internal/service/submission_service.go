@@ -29,6 +29,10 @@ func CreateSubmission(
 		return nil, err
 	}
 
+	if err := validateSubmissionFile(file, true); err != nil {
+		return nil, err
+	}
+
 	var attachmentID *string
 
 	if file != nil {
@@ -72,8 +76,8 @@ func UpdateSubmission(
 		return nil, err
 	}
 
-	if file != nil && file.Size > maxSubmissionFileSizeBytes {
-		return nil, errors.ErrSubmissionFileTooLarge
+	if err := validateSubmissionFile(file, false); err != nil {
+		return nil, err
 	}
 
 	attachment, err := handleAttachmentUpdate(file, userID)
@@ -107,18 +111,16 @@ func UpdateGrade(
 		return nil, errors.ErrForbidden
 	}
 
-	updates := map[string]any{
-		"point":     form.Point,
-		"graded_by": role,
+	if form.Point == nil {
+		return nil, errors.ErrInvalidGrade
 	}
-
-	if err := repository.UpdateSubmission(submission.ID, updates); err != nil {
+	if err := repository.UpdateManualGrade(submission.AssignmentID, submission.ID, *form.Point, role); err != nil {
 		return nil, err
 	}
 
 	data := map[string]any{
 		"submission_id": submission.ID,
-		"point":         form.Point,
+		"point":         *form.Point,
 		"graded_by":     role,
 	}
 
@@ -142,32 +144,30 @@ func UpdateGradeAndComment(
 		return nil, errors.ErrForbidden
 	}
 
-	updates := map[string]any{
-		"point":     form.Point,
-		"graded_by": role,
+	if form.Point == nil {
+		return nil, errors.ErrInvalidGrade
 	}
-
-	if err := repository.UpdateSubmission(submission.ID, updates); err != nil {
+	if err := repository.UpdateManualGrade(submission.AssignmentID, submission.ID, *form.Point, role); err != nil {
 		return nil, err
 	}
-	
+
 	commentForm := models.CommentForm{
-		Comment: 	form.Comment,
-		Visible: 	form.Visible,
+		Comment: form.Comment,
+		Visible: form.Visible,
 	}
-	
+
 	responseComment, err := CreateOrUpdateComment(courseID, submissionID, userID, role, &commentForm)
 	if err != nil {
 		return nil, err
 	}
 
 	data := map[string]any{
-		"submission_id": 	submission.ID,
-		"point":         	form.Point,
-		"graded_by":     	role,
-		"comment_id":		responseComment.ID,
-		"comment":			responseComment.Comment,
-		"visible":			responseComment.Visible,
+		"submission_id": submission.ID,
+		"point":         *form.Point,
+		"graded_by":     role,
+		"comment_id":    responseComment.ID,
+		"comment":       responseComment.Comment,
+		"visible":       responseComment.Visible,
 	}
 
 	return data, nil

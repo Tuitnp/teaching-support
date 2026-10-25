@@ -138,7 +138,7 @@ func newSubmissionFixture(t *testing.T, db *gorm.DB) *submissionFixture {
 		*cid = uuid.NewString()
 		mustExec(t, tx, `INSERT INTO comments (id, submission_id, comment, created_by_role, created_by, visible) VALUES (?, ?, 'original', 'teacher', ?, true)`, *cid, sid, f.teacher)
 	}
-	f.app = fiber.New()
+	f.app = fiber.New(fiber.Config{BodyLimit: 60 * 1024 * 1024})
 	router.SetupRoutes(f.app)
 	return f
 }
@@ -340,7 +340,7 @@ func TestSubmissionAccessControls(t *testing.T) {
 			case "uppercase-ids":
 				assignment, sid = strings.ToUpper(assignment), strings.ToUpper(sid)
 			case "create":
-				actor, sid, suffix, method = f.student, "", "", http.MethodPost
+				actor, sid, suffix, method, action = f.student, "", "", http.MethodPost, "update"
 			case "download":
 				sid, suffix = "download", ""
 			}

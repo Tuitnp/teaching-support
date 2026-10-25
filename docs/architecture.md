@@ -172,3 +172,12 @@ repository's owner+ID update predicate; zero matches return config-not-found.
 Credential ownership is still validated separately and update field behavior is
 unchanged. See [AI service](../backend/internal/service/ai_service.go) and
 [AI queries](../backend/internal/repository/ai_repository.go).
+
+R9 validates input before mutation through `models/validation.go` and
+`service/validation.go`: date/point transport fields distinguish omission from
+explicit zero; attachment batches are preflighted before uploads; optional AI
+references are owned. `repository/grade_bounds.go` serializes grade writes and
+assignment edits using an assignment row lock, then checks current bounds.
+`repository/ai_grade_repository.go` retains its conditional human-grade protection
+and score/feedback transaction. No provider or storage call holds the assignment
+lock. Full edit and manual score/comment atomicity remain R12.

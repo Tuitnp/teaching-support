@@ -29,6 +29,10 @@ func ReplaceAssignmentTemplateAttachments(id string, attachments []models.Attach
 }
 
 func GetAttachment(userID, attachmentID string) (*models.Attachment, error) {
+	if err := models.ValidateUUIDs(attachmentID); err != nil {
+		return nil, err
+	}
+
 	var attachment models.Attachment
 
 	err := database.DB.
@@ -44,6 +48,10 @@ func GetAttachment(userID, attachmentID string) (*models.Attachment, error) {
 }
 
 func GetAttachmentByID(attachmentID string) (*models.Attachment, error) {
+	if err := models.ValidateUUIDs(attachmentID); err != nil {
+		return nil, err
+	}
+
 	var attachment models.Attachment
 
 	err := database.DB.

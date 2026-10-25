@@ -15,6 +15,10 @@ func CreateSubmission(submission *models.Submission) error {
 }
 
 func GetSubmission(courseID, submissionID string) (*models.Submission, error) {
+	if err := models.ValidateUUIDs(submissionID); err != nil {
+		return nil, err
+	}
+
 	var submission models.Submission
 
 	err := database.DB.
@@ -59,6 +63,10 @@ func GetSubmissionsWithComments(assignmentID string) ([]models.Submission, error
 }
 
 func GetSubmissionWithAssignment(submissionID, userID string) (*models.Submission, error) {
+	if err := models.ValidateUUIDs(submissionID); err != nil {
+		return nil, err
+	}
+
 	var submission models.Submission
 
 	err := database.DB.
@@ -104,6 +112,10 @@ func CheckSubmissionInCourse(courseID, submissionID string) error {
 }
 
 func CheckSubmissionInAssignment(courseID, assignmentID, submissionID string) error {
+	if err := models.ValidateUUIDs(assignmentID, submissionID); err != nil {
+		return err
+	}
+
 	var submission models.Submission
 
 	err := database.DB.

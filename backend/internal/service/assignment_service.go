@@ -23,8 +23,12 @@ func CreateAssignment(
 	form *models.AssignmentForm,
 	files []*multipart.FileHeader,
 ) (*models.ResponseAssignment, error) {
-	if len(form.Attachments)+len(files) > 5 {
-		return nil, errors.ErrTooManyAttachments
+	values, err := assignmentValues(form, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateAIReference(userID, form.AIConfigID); err != nil {
+		return nil, err
 	}
 
 	attachments, err := handleAttachments(userID, form.Attachments, files)
@@ -38,18 +42,18 @@ func CreateAssignment(
 	}
 
 	assignment := models.Assignment{
-		CourseID:         courseID,
-		Title:            form.Title,
-		Description:      form.Description,
-		Point:            form.Point,
-		StartDate:        form.StartDate,
-		DueDate:          form.DueDate,
-		CloseDate:        form.CloseDate,
-		Attachments:      attachments,
-		Tags:             tags,
-		AIConfigID:       form.AIConfigID,
-		Prompt: 		  form.Prompt,
-		Visible:          form.Visible,
+		CourseID:    courseID,
+		Title:       form.Title,
+		Description: form.Description,
+		Point:       values.Point,
+		StartDate:   values.StartDate,
+		DueDate:     values.DueDate,
+		CloseDate:   values.CloseDate,
+		Attachments: attachments,
+		Tags:        tags,
+		AIConfigID:  form.AIConfigID,
+		Prompt:      form.Prompt,
+		Visible:     form.Visible,
 	}
 
 	if err := repository.CreateAssignment(&assignment); err != nil {
@@ -164,40 +168,57 @@ func UpdateAssignment(
 		return nil, err
 	}
 
+	values, err := assignmentValues(form, assignment)
+	if err != nil {
+		return nil, err
+	}
+	if form.Point != nil && values.Point < assignment.Point {
+		if err := repository.CheckMaximumPoints(assignmentID, values.Point); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateAIReference(userID, form.AIConfigID); err != nil {
+		return nil, err
+	}
+	attachments, err := handleAttachments(userID, form.Attachments, files)
+	if err != nil {
+		return nil, err
+	}
+
 	updates := map[string]any{}
 
 	if form.Title != "" {
 		updates["title"] = form.Title
 	}
-	
+
 	if form.Description != "" {
 		updates["description"] = form.Description
 	}
-	
-	if form.Point > 0 {
-		updates["point"] = form.Point
+
+	if form.Point != nil {
+		updates["point"] = *form.Point
 	}
-	
-	if !form.StartDate.IsZero() {
-		updates["start_date"] = form.StartDate
+
+	if form.StartDate != nil {
+		updates["start_date"] = *form.StartDate
 	}
-	
-	if !form.DueDate.IsZero() {
-		updates["due_date"] = form.DueDate
+
+	if form.DueDate != nil {
+		updates["due_date"] = *form.DueDate
 	}
-	
-	if !form.CloseDate.IsZero() {
-		updates["close_date"] = form.CloseDate
+
+	if form.CloseDate != nil {
+		updates["close_date"] = *form.CloseDate
 	}
-	
+
 	if form.AIConfigID != nil {
 		updates["ai_config_id"] = form.AIConfigID
 	}
-	
+
 	if form.Prompt != nil {
 		updates["prompt"] = form.Prompt
 	}
-	
+
 	updates["visible"] = form.Visible
 
 	if len(updates) > 0 {
@@ -205,15 +226,6 @@ func UpdateAssignment(
 			return nil, err
 		}
 	}
-	attachments, err := handleAttachments(
-		userID,
-		form.Attachments,
-		files,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := repository.ReplaceAssignmentAttachments(
 		assignmentID,
 		attachments,
@@ -280,6 +292,10 @@ func CreateAssignmentOverride(
 	assignmentID string,
 	form models.AssignmentOverrideForm,
 ) (*models.AssignmentOverride, error) {
+
+	if err := models.ValidateUUIDs(assignmentID, form.StudentID); err != nil {
+		return nil, err
+	}
 
 	assignment, err := repository.GetAssignment(courseID, assignmentID)
 	if err != nil {

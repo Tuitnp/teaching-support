@@ -219,6 +219,10 @@ func UpdateAIConfig(
 	aiConfigID string,
 	form *models.AIConfigForm,
 ) (*models.ResponseAIConfig, error) {
+	if err := models.ValidateUUIDs(aiConfigID, form.AICredentialID); err != nil {
+		return nil, err
+	}
+
 	config, err := repository.GetAIConfig(userID, aiConfigID)
 	if err != nil {
 		return nil, err

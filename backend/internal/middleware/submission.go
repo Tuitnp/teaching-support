@@ -14,6 +14,9 @@ func SubmissionMiddleware(c fiber.Ctx) error {
 	err := repository.CheckSubmissionInAssignment(
 		c.Params("course_id"), c.Params("assignment_id"), c.Params("submission_id"),
 	)
+	if stderrors.Is(err, errors.ErrBadRequest) {
+		return fiber.ErrBadRequest
+	}
 	if stderrors.Is(err, errors.ErrSubmissionNotFound) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": errors.ErrSubmissionNotFound.Message})
 	}

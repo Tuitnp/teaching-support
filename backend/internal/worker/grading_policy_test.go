@@ -246,7 +246,7 @@ func TestAutoGradingManualDuringProvider(t *testing.T) {
 			f.comment(t, sid, "ai", "previous AI feedback")
 			var afterManual string
 			f.beforeResponse = func() error {
-				_, err := service.UpdateGrade("COURSA", sid, "teacher", &models.GradeForm{Point: 9})
+				_, err := service.UpdateGrade("COURSA", sid, "teacher", &models.GradeForm{Point: gradePoint(9)})
 				if err == nil {
 					afterManual = f.snapshot(t, sid)
 				}
@@ -391,8 +391,8 @@ func TestAIGradeWriteSerialization(t *testing.T) {
 					t.Fatal("AI did not skip a committed human grade")
 				}
 			} else {
-				// Block AI feedback persistence while its transaction holds the score
-				// row lock, then make a real manual grade contend for that same row.
+				// Block AI feedback while its transaction holds assignment/submission
+				// locks, then make a real manual grade contend for those locks.
 				execGrading(t, f.db, `CREATE FUNCTION hold_ai_feedback() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(42641025); RETURN NEW; END $$`)
 				execGrading(t, f.db, `CREATE TRIGGER hold_ai_feedback BEFORE INSERT ON comments FOR EACH ROW EXECUTE FUNCTION hold_ai_feedback()`)
 				execGrading(t, control, `SELECT pg_advisory_xact_lock(42641025)`)
@@ -400,7 +400,7 @@ func TestAIGradeWriteSerialization(t *testing.T) {
 				aiPID := awaitGradingBlock(t, f.db, blocker)
 				manualDone := make(chan error, 1)
 				go func() {
-					_, err := service.UpdateGrade("COURSA", sid, "teacher", &models.GradeForm{Point: 9})
+					_, err := service.UpdateGrade("COURSA", sid, "teacher", &models.GradeForm{Point: gradePoint(9)})
 					manualDone <- err
 				}()
 				awaitGradingBlock(t, f.db, aiPID)
@@ -483,3 +483,5 @@ func TestAIGradeAtomicityAndRetries(t *testing.T) {
 		})
 	}
 }
+
+func gradePoint(point int16) *int16 { return &point }

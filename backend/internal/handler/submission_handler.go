@@ -18,9 +18,9 @@ func RegisterSubmissionRoutes(app fiber.Router) {
 
 func createSubmission(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("submission_create_attempt")
-	
+
 	courseID := c.Params("course_id")
 	assignmentID := c.Params("assignment_id")
 	userID := c.Locals("user_id").(string)
@@ -33,7 +33,10 @@ func createSubmission(c fiber.Ctx) error {
 		return SendError(c, errors.ErrForbidden)
 	}
 
-	file, _ := c.FormFile("file")
+	file, err := submissionFile(c)
+	if err != nil {
+		return SendError(c, err)
+	}
 
 	submission, err := service.CreateSubmission(courseID, assignmentID, userID, file)
 	if err != nil {
@@ -47,15 +50,15 @@ func createSubmission(c fiber.Ctx) error {
 		"course_id", courseID,
 		"assignment_id", assignmentID,
 	)
-	
+
 	return c.JSON(submission)
 }
 
 func updateSubmission(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("submission_update_attempt")
-	
+
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("course_role").(string)
 	submissionID := c.Params("submission_id")
@@ -67,7 +70,10 @@ func updateSubmission(c fiber.Ctx) error {
 		return SendError(c, errors.ErrForbidden)
 	}
 
-	file, _ := c.FormFile("file")
+	file, err := submissionFile(c)
+	if err != nil {
+		return SendError(c, err)
+	}
 
 	result, err := service.UpdateSubmission(submissionID, userID, file)
 	if err != nil {
@@ -80,7 +86,7 @@ func updateSubmission(c fiber.Ctx) error {
 	log.Info("submission_update_success",
 		"submission_id", submissionID,
 	)
-	
+
 	return c.JSON(result)
 }
 

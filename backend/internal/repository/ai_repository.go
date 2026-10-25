@@ -16,6 +16,10 @@ func CreateAICredential(credential *models.AICredential) error {
 }
 
 func GetAICredential(userID, id string) (*models.AICredential, error) {
+	if err := models.ValidateUUIDs(id); err != nil {
+		return nil, err
+	}
+
 	var credential *models.AICredential
 
 	err := database.DB.
@@ -58,6 +62,10 @@ func CreateAIConfig(config *models.AIConfig) error {
 }
 
 func GetAIConfig(userID, aiConfigID string) (*models.AIConfig, error) {
+	if err := models.ValidateUUIDs(aiConfigID); err != nil {
+		return nil, err
+	}
+
 	var config *models.AIConfig
 
 	err := database.DB.
@@ -73,6 +81,10 @@ func GetAIConfig(userID, aiConfigID string) (*models.AIConfig, error) {
 }
 
 func GetAIConfigs(userID, aiCredentialID string) ([]models.AIConfig, error) {
+	if err := models.ValidateUUIDs(aiCredentialID); err != nil {
+		return nil, err
+	}
+
 	var configs []models.AIConfig
 
 	err := database.DB.
@@ -84,6 +96,10 @@ func GetAIConfigs(userID, aiCredentialID string) ([]models.AIConfig, error) {
 }
 
 func GetAIConfigByID(userID, aiConfigID string) (*models.AIConfig, error) {
+	if err := models.ValidateUUIDs(aiConfigID); err != nil {
+		return nil, err
+	}
+
 	var config models.AIConfig
 
 	err := database.DB.
