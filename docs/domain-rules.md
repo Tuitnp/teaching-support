@@ -42,6 +42,7 @@ Do not interpret model role constants as evidence that every role has permission
 | Job state/retries | Pending/processing jobs block another start for the same assignment/teacher. DB job is created/reset before enqueue; failures can leave stale state. Early worker exit with zero attached submissions does not complete/fail the job. | R12: recoverable states, truthful status, retry safety, and explicit timeout units. |
 | Statistics | Active students drive summaries. A map keeps one encountered submission per student, without an explicit attempt-selection policy. Lateness uses `UpdatedAt` and base due date; grading can affect that timestamp. | R8/R13: stable submission timing, overrides, deterministic attempt selection, and meaningful incomplete/not-started counts. |
 | Python execution | Global teacher permission only; Judge0 receives limits and network disabled. No student execution permission exists in the map. | Decide student/TA availability before changing execution permissions. |
+| AI config updates | Global `ai` permission plus owned config/credential checks apply. The actual update predicates both owner and requested config ID and rejects zero matches; siblings and credential records are unchanged. Nonempty name/model fields update; temperature always updates, including zero. | R7 verified through HTTP and repository checks, including owner/deletion races. Existing omitted credential IDs still fail with generic 500; explicit ID validation remains R9. |
 
 ## Source pointers for changes
 

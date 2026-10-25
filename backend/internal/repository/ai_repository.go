@@ -98,12 +98,18 @@ func GetAIConfigByID(userID, aiConfigID string) (*models.AIConfig, error) {
 	return &config, err
 }
 
-func UpdateAIConfig(userID string, updates map[string]any) error {
-	return database.DB.
+func UpdateAIConfig(userID, aiConfigID string, updates map[string]any) error {
+	result := database.DB.
 		Model(&models.AIConfig{}).
-		Where("user_id = ?", userID).
-		Updates(updates).
-		Error
+		Where("user_id = ? AND id = ?", userID, aiConfigID).
+		Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.ErrAIConfigNotFound
+	}
+	return nil
 }
 
 func DeleteAIConfig(id string) error {

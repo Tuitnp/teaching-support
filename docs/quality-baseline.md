@@ -482,3 +482,43 @@ to distinguish committed from uncommitted acknowledgments. No garbage collector
 was added. Future cleanup must inventory all references and shared keys before
 deletion; existing explicit `DeleteAttachment`/`DeleteAssignment` behavior is not
 hardened by this fix. The external test cluster remains available for R7 checks.
+
+## R7 owner-and-ID-scoped AI config updates
+
+Measured: 2026-10-25. The service now forwards the requested config ID to the
+repository, whose UPDATE requires both that ID and the authenticated owner. Zero
+matched rows return `ErrAIConfigNotFound`; DB errors retain existing handling. No
+permission, credential, field-selection, schema, or dependency behavior changed.
+
+Added `backend/internal/handler/ai_config_scope_test.go`, using the actual router,
+JWT middleware, services/repository, and disposable PostgreSQL. The pre-patch run
+reproduced sibling mutations on ordinary edits, zero/empty field updates, and
+owner/deletion races. Final 18 cases pass:
+
+- Fifteen HTTP cases check exact target and response fields, same-owner siblings
+  sharing/differing credentials, foreign configs, missing/foreign credentials,
+  omitted credentials, student/TA/admin global roles, unauthenticated/malformed
+  requests, DB errors, and target owner changes/deletion before the UPDATE.
+- Three repository cases independently verify the owned target, wrong owner, and
+  missing ID. Non-target configs and all credential rows, including timestamps,
+  remain identical in snapshots. Write-time race/failure callbacks are removed.
+
+The omitted-credential test initially exposed an incorrect test expectation: the
+existing empty-UUID lookup returns generic 500, not 404. That behavior is preserved
+and recorded under R9; the fixture uses a savepoint to isolate the failed UUID query
+from its outer transaction. Missing and foreign valid UUID targets return 404.
+
+`go test -mod=readonly -count=1 -timeout 90s -run
+'TestAIConfig(UpdateScope|RepositoryScope)' ./internal/handler` and
+`go test -mod=readonly -count=1 -timeout 120s ./...` passed with the disposable URL.
+All prior R1–R6 regression suites executed; `go vet -mod=readonly ./...`, separate
+API/worker builds to external `r7-server.exe`/`r7-worker.exe`, and `git diff --check`
+passed. Independent source review found no confirmed bypass/regression. No live
+provider or university calls, real credentials/student records, migrations,
+application startup, package installs, or frontend changes/checks occurred.
+
+Final isolation checks matched all 83 backend source/config files to the external
+tested copy. Database cleanup found zero fixture schemas; the external PostgreSQL
+cluster was stopped. All personal test workspaces and outputs stayed outside the
+repository. Retained-file cleanup and explicit deletion safety remain the separate
+R6 follow-up, and the R9 ID-validation gap remains open.

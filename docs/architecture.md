@@ -157,3 +157,9 @@ before relying on permission, preservation, or grading guarantees.
 Keep this map short and update the affected entry when a contract or boundary
 changes. No ADR is introduced here: documenting existing code does not decide a
 new architecture or unresolved domain policy.
+
+AI config editing carries the URL config ID from handler through service into the
+repository's owner+ID update predicate; zero matches return config-not-found.
+Credential ownership is still validated separately and update field behavior is
+unchanged. See [AI service](../backend/internal/service/ai_service.go) and
+[AI queries](../backend/internal/repository/ai_repository.go).

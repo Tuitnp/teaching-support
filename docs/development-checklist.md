@@ -157,12 +157,19 @@ Each checkbox should normally be a separate change with focused regression tests
   Independent review found no confirmed bypass/regression. Retained/staged orphan
   bytes require future inventory/cleanup; existing explicit attachment/assignment
   delete paths still need shared-file safety review. See the R6 baseline.
-- [ ] **R7: Limit AI-config updates to one owned record.** Repository updates filter
-  only by user ID. See `UpdateAIConfig` in
+- [x] **R7: Limit AI-config updates to one owned record.** Previously, repository
+  updates filtered only by user ID. See `UpdateAIConfig` in
   `backend/internal/repository/ai_repository.go` and
   `backend/internal/service/ai_service.go`.
   Acceptance: editing one config leaves the user's other configs and other users'
   configs unchanged; nonexistent/unauthorized IDs are rejected.
+  Evidence: service passes the requested ID through to an owner+ID update predicate;
+  zero matches return the existing config-not-found error. All 15 HTTP and three
+  direct-repository cases passed, including sibling/credential snapshots, ownership
+  changes/deletion before write, permissions, failure handling, zero temperature,
+  and preserved empty-field behavior. Full Go suites/vet and both builds passed;
+  independent review found no confirmed issue. Existing omitted-credential UUID
+  handling returns 500 and is tracked under R9 rather than changed here.
 
 ## 3. Domain correctness and recovery
 
@@ -177,6 +184,10 @@ Each checkbox should normally be a separate change with focused regression tests
   See `backend/internal/models/forms.go` and assignment/submission services.
   Acceptance: invalid direct API requests fail without partial writes; legitimate
   boundary values follow the documented domain policy.
+  R7 verified another existing validation gap: an omitted/empty `credential_id`
+  during config update reaches a UUID query and returns generic 500. Validate IDs
+  explicitly when implementing this item; do not treat the R7 scope fix as input
+  validation coverage.
 - [ ] **R10: Make attachment permissions consistent.** Downloads omit assignment
   visibility/start checks; non-student membership checks omit active status. See
   `backend/internal/service/attachment_service.go` and
@@ -345,3 +356,9 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   both builds, and diff checks. Independent review found no confirmed issue.
   Retained-file cleanup and shared-file safety in explicit deletion endpoints are
   separate follow-up; no garbage collector or request-time storage deletion added.
+- 2026-10-25 (R7): Scoped config updates by owner and requested ID at write time,
+  rejecting zero matches. Passed 15 HTTP plus three direct repository cases, all
+  prior full Go suites, vet, both builds, and patch checks. Independent review found
+  no confirmed issue. Documented existing omitted-credential 500 under R9; preserved
+  other field/permission behavior. All 83 backend files matched the tested copy;
+  fixture schemas were removed and the disposable PostgreSQL cluster stopped.
