@@ -67,7 +67,8 @@ read/delete paths use the persisted `FileKey`, including existing timestamp keys
 Join tables are `assignment_attachments`, `assignment_tags`,
 `assignment_template_attachments`, and `assignment_template_tags`. Course-member,
 assignment-override, and student/assignment submission pairs do not have composite
-uniqueness declarations. Submission attempts and selection policy remain open.
+uniqueness declarations. R13 computes one current submission per student/assignment from creation time/ID;
+earlier rows remain readable history. See [attempt-policy.md](attempt-policy.md).
 There is no persisted text-answer or submission-status column.
 
 ## Compact API contract map
@@ -88,7 +89,7 @@ active-membership middleware. Endpoint-specific permission and scoping gaps rema
 | `GET, POST C/assignments`; `PUT, DELETE A` | Create/update multipart `title,description,point,start,due,close,visible,tags,attachments,files,ai_config_id,prompt`; list returns `{role,assignments}` |
 | `GET A`; `GET A/summary` | Detail returns `{role,assignment,submissions}`; summary returns `{statistic,submission_list}` |
 | `POST A/override` | JSON `student_id,extended_due_date` -> override record |
-| `POST A/submissions`; `PUT S`; `GET S/read` | Multipart `file` -> submission DTO; read returns a JSON string with stored text |
+| `POST A/submissions`; `PUT S`; `GET S/read` | Multipart `file` -> current submission DTO (`is_current`); POST upserts current, student history PUT is 409; read retains history access and returns a JSON string |
 | `PUT S/grade`; `PUT S/grade-with-comment` | JSON `point`, optionally `comment,visible` -> updated grading fields |
 | `POST, POST /:comment_id` under `S/comment` | Upsert comment using `comment,visible`; second route toggles visibility |
 | `GET, POST /attachments`; `GET, DELETE /attachments/:id`; `GET /attachments/:id/download` | Upload repeated multipart `files`; owned list/detail; download sends bytes and attachment headers |
@@ -139,8 +140,9 @@ Fiber errors directly, so not every failure shares that JSON contract.
 4. **Grade/report:** manual score/comment writes or worker writes -> PostgreSQL ->
    summary/export. See [summary helpers](../backend/internal/service/service.go).
    R8 preloads current attachments and loads assignment overrides in one query.
-   Summary and CSV select the latest current file per student using attachment
-   `CreatedAt`; per-student due determines lateness independently of grading.
+   R13 summary/CSV/ZIP/AI use only the current record, selected by submission
+   creation time/ID. Attachment `CreatedAt` and per-student due still determine
+   lateness independently of grading. Detached current files do not revive history.
    Missing historical upload times are reported explicitly, without a backfill.
 5. **AI job:** assignment service reserves a new job run -> Asynq payload
    `{job_id,assignment_id,teacher_id,force_regrade}` -> worker loads attached submissions,

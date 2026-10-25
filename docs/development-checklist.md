@@ -278,7 +278,13 @@ Each checkbox should normally be a separate change with focused regression tests
     on AssignmentOverride, so the originally proposed update-time rule was replaced
     with the user's explicitly approved UUID rule. HTTP/report/download and real
     concurrent enrollment/extension tests pass; prior access/TA checks pass.
-  - [ ] R13b: One current record, history guards and current-only reporting/grading.
+  - [x] R13b: One current record, history guards and current-only reporting/grading.
+    Assignment-locked POST upserts preserve identity/grades/comments; historical
+    student PUTs reject before upload and identity is rechecked under the lock. Detail DTOs
+    mark current/history and sort deterministically. Summary, both CSVs, ZIP and
+    AI selection/write guards exclude history. Missing files do not revive it.
+    Submitted/Incomplete/Not Started and grade-presence/zero-score tests pass;
+    report counters/totals avoid int16 overflow. Full Go tests/vet pass.
   - [ ] R13c: Detail defaults/history UI, statistics display and final verification.
   Acceptance: deterministic summaries and documented constraints; any schema change
   is reviewed separately with migration and rollback considerations. No schema

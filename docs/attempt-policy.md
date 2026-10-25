@@ -13,7 +13,7 @@ new record. Its identity, grades and comments remain under R6. Student PUTs to
 older records are rejected; older records remain readable history. No historical
 row or retained storage object is deleted.
 
-Current summaries, both CSV exports and automatic grading exclude historical
+Current summaries, both CSV exports, bulk ZIP downloads and automatic grading exclude historical
 records. Detaching the current file does not bring an older file back into use.
 This supersedes R8's selection among multiple file-bearing attempts for legacy
 duplicates. R8's upload-time lateness, inclusive deadlines, Bangkok display,
@@ -23,7 +23,10 @@ permissions and R6's grade-preservation policy are unchanged.
 
 Statistics count each active student once: Submitted has a current file,
 Incomplete has a current record without a file, and Not Started has no records.
-These categories describe recorded activity, not time remaining. Submission rate
+These categories describe recorded activity, not time remaining. Detail/write
+DTOs add `is_current`; summary rows add `has_grade` so absent grades are distinct
+from a valid zero. Counts and CSV totals do not use the persisted int16 score
+width. CSV student/assignment order and ZIP student order are deterministic. Submission rate
 is Submitted divided by active students. Graded/ungraded and score statistics use
 only the current file-bearing record; an explicitly graded zero is a valid score.
 

@@ -864,3 +864,39 @@ attachment-download and TA suites passed with an explicit disposable PostgreSQL
 URL. `go vet -mod=readonly -p 1 ./...` and `git diff --check` passed. Checks are
 sequential with GOMAXPROCS=2 and cached offline Go modules. Test DB/logs are outside
 the repository. R13 current-attempt/statistics/UI work remains in progress.
+
+
+## R13b one current submission and statistics
+
+Measured: 2026-10-26 (Asia/Bangkok). The user approved one mutable current record
+per student/assignment: greatest Submission.CreatedAt, then descending UUID for
+creation ties/unknowns. Earlier rows remain readable history, excluded from current
+summary/CSV/ZIP and automatic grading. This deliberately supersedes R8's choice
+among file-bearing records; upload time still determines lateness. Detaching the
+current file produces Incomplete and cannot revive a historical file.
+
+POST stages bytes then assignment-locks a transaction that creates or replaces the
+current attachment while preserving record ID, grades and comments. Historical
+student PUTs reject before storage, then current identity is rechecked
+under the lock. R8 admission stays at the existing pre-upload window check. Metadata/reference/visible-comment response reload is atomic.
+History is not deleted. AI selection chooses the current record before attachment
+joining, and write-time guards reject rows that become historical. Detail DTOs
+add is_current and deterministic student/creation ordering. Summary adds has_grade;
+valid zero scores remain distinct from absent grades in both CSVs. Counters and
+course-export sums no longer wrap at int16 limits.
+
+Tests passed for repeated POST preservation/visible feedback, readable but
+noneditable history, detached-current reporting/CSV/ZIP/AI behavior, canonical
+legacy records, real concurrent initial uploads, SQL/model agreement for known/
+tied/unknown times, zero/ungraded categories and order independence, a 33,000-student
+counter boundary, legacy zero maximum serialization, large CSV maxima/scores and
+column ordering, unchanged pre-upload admission, and an AI result whose target becomes history during provider
+work. R1 create expectations and R8 selection tests were updated to the explicitly
+approved R13 policy; deadline and R6/R9/R11/R12 preservation checks remain intact.
+Full `go test -mod=readonly -p 1 -count=1 -timeout 120s ./...` and
+`go vet -mod=readonly -p 1 ./...` passed with the explicit disposable PostgreSQL URL.
+`git diff --check` passed. All services/providers/storage are test fixtures; no
+application startup, paid/live provider, real student data, schema/index/migration,
+package upgrade or deployment operation was performed. After final explicit owner/assignment predicates were reviewed, focused current/
+replacement/admission/scope tests and Go vet also passed. Frontend validation is
+recorded in the next R13 part.

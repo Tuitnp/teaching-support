@@ -33,30 +33,16 @@ func CreateSubmission(
 		return nil, err
 	}
 
-	var attachmentID *string
-
-	if file != nil {
-		if file.Size > maxSubmissionFileSizeBytes {
-			return nil, errors.ErrSubmissionFileTooLarge
-		}
-		attachment, err := uploadSubmissionFile(userID, file)
-		if err != nil {
-			return nil, err
-		}
-		attachmentID = &attachment.ID
+	attachment, err := prepareSubmissionFile(userID, file)
+	if err != nil {
+		return nil, err
 	}
-
-	submission := models.Submission{
-		AssignmentID: assignmentID,
-		StudentID:    userID,
-		AttachmentID: attachmentID,
-	}
-
-	if err := repository.CreateSubmission(&submission); err != nil {
+	submission, err := repository.SaveCurrentSubmission(assignmentID, userID, "", attachment)
+	if err != nil {
 		return nil, err
 	}
 
-	response := models.ConvertSubmissionToResponse(&submission)
+	response := models.ConvertSubmissionToResponse(submission)
 
 	return &response, nil
 }
@@ -69,6 +55,10 @@ func UpdateSubmission(
 
 	submission, err := repository.GetSubmissionWithAssignment(submissionID, userID)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := repository.CheckCurrentSubmission(submission.AssignmentID, userID, submission.ID); err != nil {
 		return nil, err
 	}
 
@@ -85,7 +75,7 @@ func UpdateSubmission(
 		return nil, err
 	}
 
-	submission, err = repository.ReplaceSubmissionAttachment(submission.ID, userID, attachment)
+	submission, err = repository.SaveCurrentSubmission(submission.AssignmentID, userID, submission.ID, attachment)
 	if err != nil {
 		return nil, err
 	}
@@ -196,17 +186,6 @@ func ReadSubmission(
 	}
 
 	return content, nil
-}
-
-func uploadSubmissionFile(userID string, file *multipart.FileHeader) (*models.Attachment, error) {
-	attachment, err := prepareSubmissionFile(userID, file)
-	if err != nil {
-		return nil, err
-	}
-	if err := repository.CreateAttachment(attachment); err != nil {
-		return nil, err
-	}
-	return attachment, nil
 }
 
 // Upload bytes before changing references. Retain staged bytes on DB failure:

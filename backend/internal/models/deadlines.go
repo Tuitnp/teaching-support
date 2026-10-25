@@ -28,22 +28,3 @@ func CurrentFileTime(s *Submission) time.Time {
 	}
 	return s.Attachment.CreatedAt
 }
-
-// LatestFileSubmissions selects the latest current file per student, independent
-// of query order. Detached attempts are excluded. Known timestamps precede
-// unknown ones; equal or unknown timestamps use ID solely as a stable tie-break.
-func LatestFileSubmissions(submissions []Submission) map[string]*Submission {
-	selected := make(map[string]*Submission)
-	for i := range submissions {
-		s := &submissions[i]
-		if s.AttachmentID == nil {
-			continue
-		}
-		previous := selected[s.StudentID]
-		if previous == nil || CurrentFileTime(s).After(CurrentFileTime(previous)) ||
-			(CurrentFileTime(s).Equal(CurrentFileTime(previous)) && s.ID > previous.ID) {
-			selected[s.StudentID] = s
-		}
-	}
-	return selected
-}

@@ -119,14 +119,14 @@ func TestSummaryUploadReplacementAndGradingHTTP(t *testing.T) {
 	// Add a later file-bearing attempt, with a deliberately earlier row UpdatedAt.
 	attachmentID, attemptID := uuid.NewString(), uuid.NewString()
 	mustExec(t, f.db, `INSERT INTO attachments (id,created_at) VALUES (?,?)`, attachmentID, due.Add(time.Hour))
-	mustExec(t, f.db, `INSERT INTO submissions (id,assignment_id,student_id,attachment_id,point,updated_at) VALUES (?,?,?,?,9,?)`, attemptID, f.a1, f.student, attachmentID, due.Add(-time.Hour))
+	mustExec(t, f.db, `INSERT INTO submissions (id,assignment_id,student_id,attachment_id,point,updated_at,created_at) VALUES (?,?,?,?,9,?,?)`, attemptID, f.a1, f.student, attachmentID, due.Add(-time.Hour), time.Now().Add(time.Hour))
 	check("submitted", 9) // exact personal extended due
-	// Replacing the older attempt makes its current file the latest.
-	status, body = f.request(t, f.student, http.MethodPut, submissionPath("COURSA", f.a1, f.own, ""), "update")
+	// History stays read-only; replacing the current record preserves its grade.
+	status, body = f.request(t, f.student, http.MethodPut, submissionPath("COURSA", f.a1, attemptID, ""), "update")
 	if status != 200 {
 		t.Fatalf("replace %d: %s", status, body)
 	}
-	check("overdue", 8)
+	check("overdue", 9)
 	// Summary and single-assignment CSV share the same timing/selection policy.
 	csv, err := service.GetAssignmentExport("COURSA", f.a1)
 	if err != nil || !strings.Contains(string(csv), "overdue") {
@@ -136,8 +136,8 @@ func TestSummaryUploadReplacementAndGradingHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	selected := models.LatestFileSubmissions(loaded)[f.student]
-	if selected.ID != f.own || models.CurrentFileTime(selected).IsZero() {
+	selected := models.CurrentSubmissions(loaded)[f.student]
+	if selected.ID != attemptID || models.CurrentFileTime(selected).IsZero() {
 		t.Fatal("replacement timestamp not loaded")
 	}
 }

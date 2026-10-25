@@ -130,7 +130,7 @@ func newSubmissionFixture(t *testing.T, db *gorm.DB) *submissionFixture {
 		id, attachment := uuid.NewString(), uuid.NewString()
 		f.files.data[id] = []byte("answer: " + id)
 		mustExec(t, tx, `INSERT INTO attachments (id, file_key, file_name, user_id) VALUES (?, ?, 'answer.py', ?)`, attachment, id, owner)
-		mustExec(t, tx, `INSERT INTO submissions (id, assignment_id, student_id, attachment_id) VALUES (?, ?, ?, ?)`, id, assignment, owner, attachment)
+		mustExec(t, tx, `INSERT INTO submissions (id, assignment_id, student_id, attachment_id,created_at) VALUES (?, ?, ?, ?,?)`, id, assignment, owner, attachment, time.Now().UTC())
 		return id
 	}
 	f.own, f.peer, f.foreign = submission(f.a1, f.student), submission(f.a1, f.other), submission(f.b, f.student)
@@ -393,8 +393,8 @@ func TestSubmissionAccessControls(t *testing.T) {
 				if err := f.db.Model(&models.Submission{}).Count(&count).Error; err != nil {
 					t.Fatal(err)
 				}
-				if count != 4 {
-					t.Errorf("submission count = %d, want 4", count)
+				if count != 3 {
+					t.Errorf("submission count = %d, want 3", count)
 				}
 			case "download":
 				archive, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))

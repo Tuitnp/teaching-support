@@ -18,9 +18,14 @@ func buildAssignmentSummary(
 	overrides []models.AssignmentOverride,
 ) (*models.ResponseAssignmentSummary, error) {
 
-	totalStudents := int16(len(courseMembers))
+	var err error
+	courseMembers, err = models.ConsistentMemberships(courseMembers)
+	if err != nil {
+		return nil, err
+	}
+	totalStudents := len(courseMembers)
 
-	submissionMap := models.LatestFileSubmissions(submissions)
+	submissionMap := models.CurrentSubmissions(submissions)
 	overrideMap := make(map[string]*models.AssignmentOverride, len(overrides))
 	for i := range overrides {
 		row := &overrides[i]
@@ -29,10 +34,11 @@ func buildAssignmentSummary(
 		}
 	}
 
-	var submitted int16
-	var incomplete int16
-	var graded int16
-	var ungraded int16
+	var submitted int
+	var incomplete int
+	var notStarted int
+	var graded int
+	var ungraded int
 	var scores []float32
 
 	submissionList := make([]models.ResponseAssignmentSubmissionList, 0, len(courseMembers))
@@ -60,7 +66,9 @@ func buildAssignmentSummary(
 
 			if submission.Point != nil {
 				point = *submission.Point
-				percentage = float32(point) / float32(assignment.Point) * 100
+				if assignment.Point > 0 {
+					percentage = float32(point) / float32(assignment.Point) * 100
+				}
 				graded++
 				scores = append(scores, float32(point))
 			} else {
@@ -68,11 +76,15 @@ func buildAssignmentSummary(
 			}
 
 			submitted++
-		} else {
+		} else if ok {
 			incomplete++
+			status = "incomplete"
+		} else {
+			notStarted++
 		}
 
 		submissionList = append(submissionList, models.ResponseAssignmentSubmissionList{
+			HasGrade:         ok && submission.AttachmentID != nil && submission.Point != nil,
 			UserID:           cm.UserID,
 			StudentID:        cm.User.Username,
 			EnName:           cm.User.EnName,
@@ -121,7 +133,7 @@ func buildAssignmentSummary(
 			Student:        totalStudents,
 			Submitted:      submitted,
 			Incomplete:     incomplete,
-			NotStarted:     totalStudents - submitted - incomplete,
+			NotStarted:     notStarted,
 			SubmissionRate: submissionRate,
 			Graded:         graded,
 			Ungraded:       ungraded,

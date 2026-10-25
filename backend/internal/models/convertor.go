@@ -121,6 +121,8 @@ func ConvertDetailedAssignmentToResponse(
 ) ResponseDetailedAssignment {
 
 	assignmentResponse := ConvertAssignmentToResponse(a, o != nil, o)
+	OrderSubmissionHistory(*s)
+	current := CurrentSubmissions(*s)
 
 	submissionResponses := make([]ResponseSubmission, len(*s))
 
@@ -147,6 +149,7 @@ func ConvertDetailedAssignmentToResponse(
 		}
 
 		submissionResponses[i] = ResponseSubmission{
+			IsCurrent:    current[sub.StudentID].ID == sub.ID,
 			ID:           sub.ID,
 			Submitter:    sub.Student.Username + "|" + sub.Student.EnName + "|" + sub.Student.ThName,
 			Point:        sub.Point,
@@ -170,7 +173,14 @@ func ConvertSubmissionToResponse(s *Submission) ResponseSubmission {
 		fileName = &s.Attachment.FileName
 	}
 
+	comments := make([]ResponseComment, 0, len(s.Comments))
+	for _, comment := range s.Comments {
+		if comment.Visible {
+			comments = append(comments, ResponseComment{ID: comment.ID, Comment: comment.Comment, CreatedBy: string(comment.CreatedByRole), Visible: comment.Visible})
+		}
+	}
 	return ResponseSubmission{
+		IsCurrent: true, Comments: comments,
 		ID:           s.ID,
 		Point:        s.Point,
 		GradedBy:     (*string)(s.GradedBy),

@@ -11,10 +11,6 @@ import (
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
 )
 
-func CreateSubmission(submission *models.Submission) error {
-	return database.DB.Create(submission).Error
-}
-
 func GetSubmission(courseID, submissionID string) (*models.Submission, error) {
 	if err := models.ValidateUUIDs(submissionID); err != nil {
 		return nil, err
@@ -39,7 +35,8 @@ func GetSubmissions(ctx context.Context, assignmentID string) ([]models.Submissi
 
 	err := database.DB.WithContext(ctx).
 		InnerJoins("Attachment").
-		Where("assignment_id = ?", assignmentID).
+		Where("submissions.assignment_id = ?", assignmentID).
+		Where("submissions.id IN ("+currentSubmissionIDs+")", assignmentID).
 		Find(&submissions).Error
 
 	if err != nil {
@@ -174,34 +171,4 @@ func UpdateSubmission(id string, updates map[string]any) error {
 	return database.DB.Model(&models.Submission{}).
 		Where("id = ?", id).
 		Updates(updates).Error
-}
-
-// ReplaceSubmissionAttachment changes metadata and the reference atomically,
-// without saving a stale submission's grades or deleting any storage object.
-func ReplaceSubmissionAttachment(id, userID string, attachment *models.Attachment) (*models.Submission, error) {
-	var submission models.Submission
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		var attachmentID *string
-		if attachment != nil {
-			if err := tx.Create(attachment).Error; err != nil {
-				return err
-			}
-			attachmentID = &attachment.ID
-		}
-		result := tx.Model(&models.Submission{}).
-			Where("id = ? AND student_id = ?", id, userID).
-			Update("attachment_id", attachmentID)
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected != 1 {
-			return errors.ErrSubmissionNotFound
-		}
-		return tx.Preload("Attachment").Where("id = ? AND student_id = ?", id, userID).
-			First(&submission).Error
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &submission, nil
 }

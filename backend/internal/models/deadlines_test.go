@@ -63,17 +63,17 @@ func TestSubmissionWindowBoundaries(t *testing.T) {
 	}
 }
 
-func TestLatestCurrentFileSelection(t *testing.T) {
+func TestCurrentSubmissionSelection(t *testing.T) {
 	attachmentID := "file"
 	at := time.Date(2026, 10, 25, 0, 0, 0, 0, time.UTC)
 	submissions := []Submission{
-		{ID: "a", StudentID: "student", AttachmentID: &attachmentID, Attachment: &Attachment{CreatedAt: at}},
-		{ID: "b", StudentID: "student", AttachmentID: &attachmentID, Attachment: &Attachment{CreatedAt: at.Add(time.Hour)}},
-		{ID: "z", StudentID: "student", UpdatedAt: at.Add(10 * time.Hour)},                              // detached
-		{ID: "y", StudentID: "student", AttachmentID: &attachmentID, UpdatedAt: at.Add(20 * time.Hour)}, // unknown
+		{ID: "a", StudentID: "student", CreatedAt: at, AttachmentID: &attachmentID, Attachment: &Attachment{CreatedAt: at.Add(10 * time.Hour)}},
+		{ID: "b", StudentID: "student", CreatedAt: at.Add(time.Hour), AttachmentID: &attachmentID, Attachment: &Attachment{CreatedAt: at.Add(time.Hour)}},
+		{ID: "z", StudentID: "student", CreatedAt: at.Add(2 * time.Hour), UpdatedAt: at.Add(10 * time.Hour)}, // detached
+		{ID: "y", StudentID: "student", AttachmentID: &attachmentID, UpdatedAt: at.Add(20 * time.Hour)},      // unknown
 	}
 	for range 2 {
-		if got := LatestFileSubmissions(submissions)["student"].ID; got != "b" {
+		if got := CurrentSubmissions(submissions)["student"].ID; got != "z" {
 			t.Fatalf("selected %s", got)
 		}
 		for i, j := 0, len(submissions)-1; i < j; i, j = i+1, j-1 {
@@ -81,7 +81,7 @@ func TestLatestCurrentFileSelection(t *testing.T) {
 		}
 	}
 	unknown := []Submission{{ID: "a", StudentID: "student", AttachmentID: &attachmentID}, {ID: "b", StudentID: "student", AttachmentID: &attachmentID}}
-	if got := LatestFileSubmissions(unknown)["student"]; got.ID != "b" || !CurrentFileTime(got).IsZero() {
+	if got := CurrentSubmissions(unknown)["student"]; got.ID != "b" || !CurrentFileTime(got).IsZero() {
 		t.Fatal("unknown time was invented or unstable")
 	}
 }

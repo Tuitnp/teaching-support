@@ -10,6 +10,7 @@ func (e *AppError) Error() string {
 }
 
 var (
+	ErrHistoricalSubmission    = &AppError{409, "historical submissions are read-only; update the current submission"}
 	ErrMembershipConflict      = &AppError{409, "conflicting course membership roles/statuses; a teacher must resolve all matching rows"}
 	ErrInvalidPoints           = &AppError{400, "maximum points must be a positive integer"}
 	ErrInvalidSchedule         = &AppError{400, "assignment dates must satisfy start < due <= close"}

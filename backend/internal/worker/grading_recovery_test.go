@@ -263,3 +263,30 @@ func TestGradingDatabaseCancellation(t *testing.T) {
 		t.Fatal("cancelled SQL changed a grade")
 	}
 }
+
+func TestAutoGradingCannotSaveToHistory(t *testing.T) {
+	f := newGradingFixture(t)
+	id := f.submission(t, nil, nil)
+	before := f.snapshot(t, id)
+	var old models.Submission
+	if err := f.db.First(&old, "id=?", id).Error; err != nil {
+		t.Fatal(err)
+	}
+	newID := uuid.NewString()
+	f.beforeResponse = func() error {
+		return f.db.Exec(`INSERT INTO submissions (id,assignment_id,student_id,attachment_id,created_at) VALUES (?,?,?,?,?)`, newID, f.assignment, old.StudentID, old.AttachmentID, time.Now().Add(time.Hour)).Error
+	}
+	if err := f.run(false); err != nil {
+		t.Fatal(err)
+	}
+	if f.snapshot(t, id) != before {
+		t.Fatal("AI wrote to a record that became historical")
+	}
+	var current models.Submission
+	if err := f.db.First(&current, "id=?", newID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if current.Point != nil {
+		t.Fatal("AI result was redirected to a different record")
+	}
+}

@@ -47,21 +47,21 @@ func TestSummaryUsesUploadTimeAndStudentExtension(t *testing.T) {
 	}
 }
 
-func TestSummaryUsesLatestCurrentFileScore(t *testing.T) {
+func TestSummaryUsesCurrentRecordScore(t *testing.T) {
 	due := time.Now()
 	a := &models.Assignment{DueDate: due, Point: 10}
 	fileID := "file"
 	oldPoint, newPoint := int16(3), int16(8)
 	submissions := []models.Submission{
-		{ID: "old", StudentID: "student", AttachmentID: &fileID, Attachment: &models.Attachment{CreatedAt: due.Add(-time.Hour)}, Point: &oldPoint},
-		{ID: "new", StudentID: "student", AttachmentID: &fileID, Attachment: &models.Attachment{CreatedAt: due}, Point: &newPoint},
-		{ID: "detached", StudentID: "student", UpdatedAt: due.Add(time.Hour), Point: &oldPoint},
+		{ID: "old", StudentID: "student", CreatedAt: due.Add(-time.Hour), AttachmentID: &fileID, Attachment: &models.Attachment{CreatedAt: due.Add(-time.Hour)}, Point: &oldPoint},
+		{ID: "new", StudentID: "student", CreatedAt: due, AttachmentID: &fileID, Attachment: &models.Attachment{CreatedAt: due}, Point: &newPoint},
+		{ID: "detached", StudentID: "student", CreatedAt: due.Add(-2 * time.Hour), UpdatedAt: due.Add(time.Hour), Point: &oldPoint},
 	}
 	got, err := buildAssignmentSummary(a, []models.CourseMember{{UserID: "student"}, {UserID: "empty"}}, submissions, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.SubmissionList[0].Point != 8 || got.SubmissionList[0].SubmissionStatus != "submitted" || got.SubmissionList[1].SubmissionStatus != "no submitted" || got.Statistic.Submitted != 1 {
+	if got.SubmissionList[1].Point != 8 || got.SubmissionList[1].SubmissionStatus != "submitted" || got.SubmissionList[0].SubmissionStatus != "no submitted" || got.Statistic.Submitted != 1 {
 		t.Fatalf("unexpected summary: %+v", got)
 	}
 }

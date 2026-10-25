@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"mime/multipart"
+	"sort"
 
 	"time"
 
@@ -146,6 +147,9 @@ func GetAssignment(userID, courseID, role, assignmentID string) (*models.Respons
 		return nil, errors.ErrForbidden
 	}
 
+	if err != nil {
+		return nil, err
+	}
 	response := models.ConvertDetailedAssignmentToResponse(assignment, &submissions, override)
 
 	return &response, nil
@@ -356,8 +360,13 @@ func DownloadSubmissions(courseID, assignmentID string) ([]byte, error) {
 	zipWriter := zip.NewWriter(zipBuffer)
 
 	fileCount := 0
+	models.OrderSubmissionHistory(submissions)
+	current := models.CurrentSubmissions(submissions)
 
 	for _, submission := range submissions {
+		if current[submission.StudentID].ID != submission.ID {
+			continue
+		}
 
 		if submission.Attachment == nil {
 			continue
@@ -407,6 +416,12 @@ func GetAssignmentsExport(courseID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(assignments, func(i, j int) bool {
+		if assignments[i].Title != assignments[j].Title {
+			return assignments[i].Title < assignments[j].Title
+		}
+		return assignments[i].ID < assignments[j].ID
+	})
 
 	// Create a map of studentID -> courseMember for easy lookup
 	studentMap := make(map[string]*models.CourseMember)
@@ -427,13 +442,13 @@ func GetAssignmentsExport(courseID string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		submissionsMap[assignment.ID] = models.LatestFileSubmissions(submissions)
+		submissionsMap[assignment.ID] = models.CurrentSubmissions(submissions)
 	}
 
 	// Calculate total max points for all assignments
-	var totalMaxPoints int16
+	var totalMaxPoints int64
 	for _, assignment := range assignments {
-		totalMaxPoints += assignment.Point
+		totalMaxPoints += int64(assignment.Point)
 	}
 
 	// Create CSV buffer
@@ -461,16 +476,16 @@ func GetAssignmentsExport(courseID string) ([]byte, error) {
 			member.User.Email,
 		}
 
-		var totalPoints int16
+		var totalPoints int64
 		for _, assignment := range assignments {
 			var earnedPoint *int16
-			if submission := submissionsMap[assignment.ID][member.UserID]; submission != nil {
+			if submission := submissionsMap[assignment.ID][member.UserID]; submission != nil && submission.AttachmentID != nil {
 				earnedPoint = submission.Point
 			}
 
 			if earnedPoint != nil {
 				row = append(row, fmt.Sprintf("%d", *earnedPoint))
-				totalPoints += *earnedPoint
+				totalPoints += int64(*earnedPoint)
 			} else {
 				row = append(row, "")
 			}
@@ -543,7 +558,7 @@ func GetAssignmentExport(courseID, assignmentID string) ([]byte, error) {
 		}
 
 		// Fill point and percentage if submitted
-		if submission.SubmissionStatus != "no submitted" {
+		if submission.HasGrade {
 			row[4] = fmt.Sprintf("%d", submission.Point)
 			row[5] = fmt.Sprintf("%.2f", submission.Percentage)
 		}

@@ -55,6 +55,7 @@ type ResponseComment struct {
 }
 
 type ResponseSubmission struct {
+	IsCurrent    bool              `json:"is_current"`
 	ID           string            `json:"id"`
 	Submitter    string            `json:"submitter"`
 	Answer       string            `json:"answer"`
@@ -81,17 +82,17 @@ type ResponsePythonCode struct {
 type ScoreDistribution struct {
 	RangeStart float32 `json:"range_start"`
 	RangeEnd   float32 `json:"range_end"`
-	Count      int16   `json:"count"`
+	Count      int     `json:"count"`
 }
 
 type ResponseAssignmentStatistic struct {
-	Student        int16               `json:"students"`
-	Submitted      int16               `json:"submitted"`
-	Incomplete     int16               `json:"incomplete"`
-	NotStarted     int16               `json:"not_started"`
+	Student        int                 `json:"students"`
+	Submitted      int                 `json:"submitted"`
+	Incomplete     int                 `json:"incomplete"`
+	NotStarted     int                 `json:"not_started"`
 	SubmissionRate float32             `json:"submission_rate"`
-	Graded         int16               `json:"graded"`
-	Ungraded       int16               `json:"ungrade"`
+	Graded         int                 `json:"graded"`
+	Ungraded       int                 `json:"ungrade"`
 	AverageScore   float32             `json:"avg_score"`
 	HighestScore   float32             `json:"highest_score"`
 	LowestScore    float32             `json:"lowest_score"`
@@ -100,6 +101,7 @@ type ResponseAssignmentStatistic struct {
 }
 
 type ResponseAssignmentSubmissionList struct {
+	HasGrade         bool    `json:"has_grade"`
 	UserID           string  `json:"user_id"`
 	StudentID        string  `json:"student_id"`
 	EnName           string  `json:"en_name"`
