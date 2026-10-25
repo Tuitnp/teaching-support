@@ -132,11 +132,18 @@ Each checkbox should normally be a separate change with focused regression tests
   tests (including all 82 R1 scenarios), vet, and both binary builds passed.
   Independent review found no confirmed functional bypass/regression. TA permissions
   remain unchanged; R5 attribution and broader R12 recovery remain separate.
-- [ ] **R5: Reject ambiguous AI result attribution.** The normalizer can reuse
+- [x] **R5: Reject ambiguous AI result attribution.** Previously, the normalizer reused
   duplicate/invalid results to fill missing indexes. See
   `normalizeAIGradingResults` in `backend/internal/worker/grading_handler.go`.
   Acceptance: duplicate, missing, invalid, and extra results are rejected without
   misattributing any score/comment; valid results map exactly to the batch.
+  Evidence: explicit nonnull integer indexes, exact item count, unique in-range
+  mapping, and matching optional IDs are required. Duplicate JSON fields are
+  rejected, including case aliases. All 23 pure cases and 40 normal/forced malformed
+  response database cases passed, with unchanged grade/comment snapshots on rejection.
+  Existing R4 cases, full Go test/vet, and both binary builds passed. Independent
+  review found no confirmed bypass/regression. Clamping, comment normalization,
+  fence compatibility, and R4 persistence are unchanged. See the R5 baseline.
 - [ ] **R6: Preserve submissions during file replacement.** The old object is
   deleted before replacement succeeds. See `handleAttachmentUpdate` in
   `backend/internal/service/submission_service.go`.
@@ -319,3 +326,8 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   vet, both builds, and diff checks passed. Independent review found no confirmed
   functional issue; verification gaps it identified were covered. TA permissions,
   R5 mapping, and broader R12 recovery were not changed.
+- 2026-10-25 (R5): Rejected ambiguous result identities at JSON and normalization
+  boundaries before batch writes. All 23 pure and 40 malformed normal/forced DB
+  cases passed, as did existing R4/R1 suites, full Go tests/vet, both builds, and
+  diff checks. Independent review found no confirmed bypass/regression. No score
+  scale, feedback normalization, R4 permission policy, dependencies, or schema changed.

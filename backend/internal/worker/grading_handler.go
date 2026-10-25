@@ -534,66 +534,24 @@ func normalizeAIGradingResults(results []aiGradingResult, batch []models.Submiss
 		return nil, fmt.Errorf("empty batch")
 	}
 
+	if len(results) != expected {
+		return nil, fmt.Errorf("expected exactly %d grading items, got %d", expected, len(results))
+	}
 	normalized := make([]models.AIGradingForm, expected)
 	filled := make([]bool, expected)
-	used := make([]bool, len(results))
-	hasIndex := false
-
-	for i, r := range results {
-		if r.Index < 0 || r.Index >= expected {
-			continue
+	for _, r := range results {
+		if r.Index < 0 || r.Index >= expected || filled[r.Index] {
+			return nil, fmt.Errorf("invalid or repeated submission index %d", r.Index)
 		}
-		hasIndex = true
-		if filled[r.Index] {
-			continue
+		if r.ID != "" && r.ID != batch[r.Index].ID {
+			return nil, fmt.Errorf("grading ID conflicts with submission index %d", r.Index)
 		}
-
 		normalized[r.Index] = models.AIGradingForm{
 			SubmissionID: batch[r.Index].ID,
-			Point:        int16(normalizePoint(int(r.Point), maxPoint)),
-			Comment:      normalizeComment(r.Comment),
+			Point: int16(normalizePoint(int(r.Point), maxPoint)),
+			Comment: normalizeComment(r.Comment),
 		}
 		filled[r.Index] = true
-		used[i] = true
-	}
-
-	if hasIndex {
-		nextUnused := 0
-		for i := 0; i < expected; i++ {
-			if filled[i] {
-				continue
-			}
-
-			for nextUnused < len(results) && used[nextUnused] {
-				nextUnused++
-			}
-			if nextUnused >= len(results) {
-				return nil, fmt.Errorf("missing grading item for submission index %d", i)
-			}
-
-			r := results[nextUnused]
-			normalized[i] = models.AIGradingForm{
-				SubmissionID: batch[i].ID,
-				Point:        int16(normalizePoint(int(r.Point), maxPoint)),
-				Comment:      normalizeComment(r.Comment),
-			}
-			used[nextUnused] = true
-			filled[i] = true
-		}
-
-		return normalized, nil
-	}
-
-	if len(results) < expected {
-		return nil, fmt.Errorf("expected at least %d grading items, got %d", expected, len(results))
-	}
-
-	for i := 0; i < expected; i++ {
-		normalized[i] = models.AIGradingForm{
-			SubmissionID: batch[i].ID,
-			Point:        int16(normalizePoint(int(results[i].Point), maxPoint)),
-			Comment:      normalizeComment(results[i].Comment),
-		}
 	}
 
 	return normalized, nil

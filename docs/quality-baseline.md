@@ -410,3 +410,36 @@ Final cleanup found zero R1/R4 fixture schemas, stopped the disposable PostgreSQ
 cluster, and confirmed that its port had no listener. All 79 checked backend files
 matched the external test copy; all 75 relative links in the changed project
 documents resolved.
+
+## R5 strict AI result attribution
+
+Measured: 2026-10-25. Added explicit JSON attribution validation and removed both
+unused-result reassignment and response-order fallback. A batch requires exactly
+one result per input index, with unique in-range integer indexes. Missing/null
+indexes/items and repeated JSON fields (including case aliases) are rejected.
+An optional ID must be a nonempty string matching the indexed submission. The
+entire batch is validated before any score/comment persistence. R4's transaction,
+score clamping, comment normalization, and existing code-fence handling are retained.
+
+Added `backend/internal/worker/grading_result_test.go` and extended the existing
+fake-provider fixture. Before patching, duplicate/index-field responses succeeded
+through the worker and pure tests reproduced reassignment/defaulting bugs. After:
+
+- All 23 pure cases pass, including shuffled distinct scores/comments and legitimate
+  index zero, plus score/comment normalization controls.
+- All 40 PostgreSQL cases (20 malformed classes under normal and forced jobs) fail
+  safely with unchanged submission/comment snapshots and a failed job status.
+- Existing 20 R4 grading cases and 82 R1 HTTP cases pass alongside JWT/config and
+  storage tests. Independent review found no confirmed bypass/regression.
+
+Commands from the external backend copy: `go test -mod=readonly -count=1 -timeout
+120s ./internal/worker`, then `go test -mod=readonly -count=1 -timeout 120s ./...`
+with the disposable test URL, `go vet -mod=readonly ./...`, and separate API/worker
+`go build -mod=readonly -o <external-results>/r5-server.exe ./cmd/server` /
+`go build -mod=readonly -o <external-results>/r5-worker.exe ./cmd/worker`; all passed.
+`git diff --check` passed. Binaries were not executed. Tests used the existing
+installed tools and a new external loopback-only PostgreSQL cluster, retained for
+the following R6/R7 checks. No packages, real credentials/student data, production
+services, AutoMigrate, or frontend changes were involved; frontend checks were not
+repeated. Earlier completed batches in a multi-batch job are not rolled back when a
+later batch is rejected; broader job atomicity/recovery remains R12.

@@ -40,6 +40,7 @@ type gradingFixture struct {
 	calls               atomic.Int32
 	beforeResponse      func() error
 	providerFailure     bool
+	responseOverride    func([]aiGradingResult) string
 }
 
 func newGradingFixture(t *testing.T) *gradingFixture {
@@ -116,6 +117,9 @@ func newGradingFixture(t *testing.T) *gradingFixture {
 			}
 		}
 		content, _ := json.Marshal(results)
+		if f.responseOverride != nil {
+			content = []byte(f.responseOverride(results))
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"id": "fixture", "object": "chat.completion", "created": 1, "model": "fixture", "choices": []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": string(content)}, "finish_reason": "stop"}}})
 	}))
