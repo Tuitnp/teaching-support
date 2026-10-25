@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge"
 import { Download, ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
 import SummaryChart from "./summary-chart"
 import { useAuth } from "@/lib/auth-context"
+import { summaryGradeValue } from "@/lib/submission-record"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,7 @@ interface SubmissionStatistic {
 }
 
 type SubmissionList = {
+  has_grade?: boolean
   user_id: string
   student_id: string
   en_name: string
@@ -109,7 +111,7 @@ function StatusBadge({ status }: { status: string }) {
     case "no submitted":
       return (
         <Badge variant="destructive">
-          {status}
+          Not started
         </Badge>
       )
 
@@ -160,7 +162,7 @@ function useColumns(fullPoint: number | null) {
         accessorKey: "point",
         header: () => <div className="text-right">{fullPoint != null ? `Point (${fullPoint})` : "Point"}</div>,
         cell: ({ row }) => (
-          <div className="text-right tabular-nums">{row.getValue("point")}</div>
+          <div className="text-right tabular-nums">{summaryGradeValue(row.original.has_grade, row.original.point) === "" ? "—" : row.original.point}</div>
         ),
         enableSorting: true,
       },
@@ -169,7 +171,7 @@ function useColumns(fullPoint: number | null) {
         header: "Percentage",
         cell: ({ row }) => (
           <div className="text-right tabular-nums">
-            {Number(row.getValue("percentage")).toFixed(2)}%
+            {summaryGradeValue(row.original.has_grade, row.original.percentage) === "" ? "—" : `${row.original.percentage.toFixed(2)}%`}
           </div>
         ),
       },
@@ -294,8 +296,8 @@ export default function Page() {
       escapeCsv(item.th_name),
       escapeCsv(item.email),
       escapeCsv(item.submission_status),
-      escapeCsv(String(item.point ?? "")),
-      escapeCsv(item.percentage),
+      escapeCsv(summaryGradeValue(item.has_grade, item.point)),
+      escapeCsv(summaryGradeValue(item.has_grade, item.percentage)),
     ])
 
     const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n")
@@ -334,7 +336,7 @@ export default function Page() {
     ])
 
     if (!summaryRes.ok) {
-      setError("Failed to load assignment data")
+      setError(summaryRes.status === 409 ? "Course membership data conflicts. A teacher must resolve the enrollment records before reports can load." : "Failed to load assignment data")
       setLoading(false)
       return
     }
@@ -447,7 +449,8 @@ export default function Page() {
                       <SelectItem value="all">All statuses</SelectItem>
                       <SelectItem value="submitted">Submitted</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
-                      <SelectItem value="no submitted">No submission</SelectItem>
+                      <SelectItem value="incomplete">Incomplete</SelectItem>
+                      <SelectItem value="no submitted">Not started</SelectItem>
                       <SelectItem value="timing unavailable">Timing unavailable</SelectItem>
                     </SelectContent>
                   </Select>

@@ -67,6 +67,8 @@ $env:NEXT_TELEMETRY_DISABLED = '1'
 npm ci --no-audit --no-fund
 npm exec -- tsc --noEmit --incremental false
 npm run lint
+npm run test:datetime
+npm run test:submissions
 npm run build
 ```
 

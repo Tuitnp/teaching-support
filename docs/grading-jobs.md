@@ -33,6 +33,8 @@ DB reads/writes, storage and provider work receive the attempt context. Expired 
 superseded attempts cannot commit a late AI result or change a newer attempt's
 state. Database cleanup uses a separate bounded context after cancellation.
 
+R13 restricts selection and write-time eligibility to the current record per
+student; historical records remain readable but receive no automatic grade.
 Normal retries skip committed grades. Approved forced retries may regenerate and
 replace AI grades already saved by that run, so provider calls and AI scores can
 repeat/change. Existing AI feedback IDs are retained, previous output survives a

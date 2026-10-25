@@ -47,6 +47,7 @@ The commands above use process-local settings and create no environment file.
 npm exec -- tsc --noEmit --incremental false
 npm run lint
 npm run test:datetime
+npm run test:submissions
 npm run build
 ```
 
@@ -56,7 +57,9 @@ adding new warnings or suppressions. R8 adds `npm run test:datetime`, using Node
 built-in TypeScript support and `node:test` without another dependency. It checks Bangkok display/parsing, unchanged
 edit precision, and DST-safe time changes under three host timezones. There is no
 general `test` script or component test suite: `npm test`
-currently exits with "Missing script".
+currently exits with "Missing script". R13 adds `npm run test:submissions`
+for current/history selection, edit guards, repeated POST merging, and missing
+grades versus valid zero scores, using the same built-in runner.
 
 The app loads JetBrains Mono through `next/font/google` in `src/app/layout.tsx`;
 the initial development/build compilation may need network access for the font.

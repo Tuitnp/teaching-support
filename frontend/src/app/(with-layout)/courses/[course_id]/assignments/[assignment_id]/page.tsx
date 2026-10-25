@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { canEditSubmission, mergeCurrentSubmission, selectCurrentSubmission } from "@/lib/submission-record"
 import { BreadcrumbNav } from "@/components/breadcrumb-nav"
 import { AssignmentInfo } from "./assignment-info"
 import { SubmissionList } from "./submission-list"
@@ -52,6 +53,7 @@ type Comment = {
 }
 
 type Submission = {
+  is_current?: boolean
   id: string
   submitter: string
   answer: string
@@ -107,21 +109,16 @@ export default function AssignmentDetailPage() {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses/${course_id}/assignments/${assignment_id}`, {
           headers: { Authorization: `Bearer ${user.token}` },
         })
-        if (!res.ok) throw new Error("Failed to fetch assignment")
+        if (!res.ok) throw new Error(res.status === 409 ? "Course membership data conflicts. Ask a teacher to resolve your enrollment." : "Failed to fetch assignment")
         const data = await res.json()
         setAssignment(data.assignment)
         setSubmissions(data.submissions || [])
         setIsStudent(data.role == "student")
         setCourseRole(data.role)
 
-        // For students, find their own submission
-        if (data.role == "student" && data.submissions?.length > 0) {
-          const mySubmission = data.submissions[0]
-          setSelectedSubmission(mySubmission || null)
-        } else if (data.role != "student" && data.submissions?.length > 0) {
-          // For non-students, select first submission
-          setSelectedSubmission(data.submissions[0])
-        }
+        const records: Submission[] = data.submissions || []
+        setSelectedSubmission(data.role === "student" ? selectCurrentSubmission(records) : records[0] ?? null)
+
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred")
       } finally {
@@ -315,6 +312,8 @@ export default function AssignmentDetailPage() {
   const handleSubmit = async (file?: File | null) => {
     if (!user?.token) return
 
+    if (!canEditSubmission(selectedSubmission, submissions.length)) throw new Error("Historical submissions are read-only")
+
     const isUpdate = !!selectedSubmission?.id
 
     // For new submissions, file is required
@@ -342,14 +341,7 @@ export default function AssignmentDetailPage() {
 
       const newSubmission = await response.json()
 
-      // Update submissions list
-      setSubmissions((prev) => {
-        if (isUpdate) {
-          return prev.map((s) => (s.id === newSubmission.id ? newSubmission : s))
-        } else {
-          return [newSubmission, ...prev]
-        }
-      })
+      setSubmissions((previous) => mergeCurrentSubmission(previous, newSubmission))
 
       // Set as selected submission
       setSelectedSubmission(newSubmission)
@@ -403,6 +395,26 @@ export default function AssignmentDetailPage() {
     <div className={isEvaluate ? "flex h-screen flex-col overflow-hidden" : "space-y-6"}>
       {/* Breadcrumb */}
       <BreadcrumbNav courseName={courseName} assignmentName={assignment.title} />
+      {isStudent && submissions.length > 1 && (
+        <div className="mx-6 space-y-2">
+          <label htmlFor="submission-record" className="text-sm font-medium">Submission history</label>
+          <select id="submission-record" className="block w-full rounded-md border bg-background p-2 text-sm"
+            value={selectedSubmission?.id ?? ""}
+            onChange={(event) => setSelectedSubmission(submissions.find((record) => record.id === event.target.value) ?? null)}>
+            {submissions.map((record, index) => (
+              <option key={record.id} value={record.id}>
+                {record.is_current ? "Current submission" : `History ${index}`} — {record.file_name || "No attachment"}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {selectedSubmission && !selectedSubmission.is_current && (
+        <p className="mx-6 rounded-md border p-3 text-sm text-muted-foreground">
+          Historical submission. Excluded from current reports and automatic grading.
+          {isStudent && " This record is read-only."}
+        </p>
+      )}
       {isEvaluate && !isStudent ? (
         <div className="flex-1 flex min-h-0 overflow-hidden">
           <div className={isGradingPanelCollapsed ? "flex-1" : "w-3/4 min-w-0"}>
@@ -465,7 +477,7 @@ export default function AssignmentDetailPage() {
                   <AnswerBox
                     attachmentId={selectedSubmission?.attachment_id}
                     fileName={selectedSubmission?.file_name}
-                    isStudent={true}
+                    isStudent={canEditSubmission(selectedSubmission, submissions.length)}
                     hasSubmission={!!studentHasSubmission}
                     isClosed={isAssignmentClosed}
                     onSubmit={handleSubmit}

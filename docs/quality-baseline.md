@@ -900,3 +900,44 @@ application startup, paid/live provider, real student data, schema/index/migrati
 package upgrade or deployment operation was performed. After final explicit owner/assignment predicates were reviewed, focused current/
 replacement/admission/scope tests and Go vet also passed. Frontend validation is
 recorded in the next R13 part.
+
+
+## R13c current defaults and history UI
+
+Measured: 2026-10-26 (Asia/Bangkok). Detail selection uses the server's is_current
+marker, so a detached current record opens instead of a historical file. A student
+history selector retains read access with static content/visible feedback and no
+edit controls; the handler also rejects historical writes. POST responses merge
+by stable ID and retain visible feedback. Missing/unknown current markers do not
+enable writes when records exist. Summary cells and the browser-generated CSV use
+has_grade to show blank/dash for absent grades and retain numeric zero. Labels
+explain Incomplete/Not Started, and 409 membership failures show a resolution
+message. No broader TA interface redesign was added (Q5 remains separate).
+
+`npm run test:submissions` passed four behavior tests with Node 24 native TypeScript
+and node:test, covering selection, edit guards, merge preservation/idempotence,
+and zero-versus-missing grade values. Existing `npm run test:datetime` passed all
+three timezone scenarios. `npm run lint` passed with 0 errors and the existing
+74-warning count. `npm exec -- tsc --noEmit --incremental false` and `npm run build`
+passed. Checks used the already installed locked dependencies in the external
+frontend workspace, npm offline mode and CIRCLE_NODE_TOTAL=3 (two Next.js page
+workers). No package installation/upgrade occurred. The existing harmless Node
+MODULE_TYPELESS_PACKAGE_JSON warning remains; package module semantics were not
+changed to suppress it. Source/config/manifest/lock/test files matched the tested
+copy byte-for-byte; the frontend README was updated afterward for the new command.
+
+Final full backend tests/vet and the focused current/replacement/admission/scope
+rerun passed against the explicit disposable PostgreSQL URL. New SQL/metadata
+predicates preserve owner/assignment scope, and the regression keeps R8 admission
+at the pre-upload check instead of introducing a late cutoff. `git diff --check`
+and changed-document links passed. There were no failed application checks in R13;
+unsupported override timestamp edits were withdrawn before testing, after the
+missing fields were identified and the user approved the stable UUID policy.
+
+PostgreSQL had zero fixture schemas, was stopped, and its port was closed. No live
+application startup, real student records, paid providers, production service,
+schema/index/migration, historical deletion, infrastructure/deployment operation or
+AI-specific repository artifact was introduced. Browser/component E2E and a real
+Redis restart remain Q2/Q1; this run does not claim those were executed. Existing
+application locks prevent duplicate supported writes, not direct SQL/imports;
+future database constraints and cleanup require separate review per attempt-policy.

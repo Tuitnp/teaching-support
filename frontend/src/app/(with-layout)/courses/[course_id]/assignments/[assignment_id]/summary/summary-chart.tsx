@@ -162,11 +162,13 @@ export default function SummaryChart({
         <MetricCard
           label="Incomplete"
           value={statistic.incomplete ?? 0}
+          description="No file attached"
           accent="hsl(38, 92%, 50%)"
         />
         <MetricCard
           label="Not Started"
           value={statistic.not_started ?? 0}
+          description="No submission yet"
           accent="hsl(0, 84%, 60%)"
         />
         <MetricCard

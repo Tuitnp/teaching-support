@@ -267,7 +267,7 @@ Each checkbox should normally be a separate change with focused regression tests
   F3's raw `Timeout(60)` was 60 ns, serialized to zero seconds, causing the locked
   worker's 30-minute fallback. R12 now explicitly sets 30 minutes and three retries;
   real task option values and cancellation behavior are covered by tests.
-- [ ] **R13: Define attempt and statistics semantics.** Approved one current mutable
+- [x] **R13: Define attempt and statistics semantics.** Approved one current mutable
   submission plus read-only student history; current identity is latest creation
   time, then descending UUID. Repeated POST replaces that record under R6. Current
   reports/AI grading exclude history, including after a current file is detached.
@@ -285,7 +285,12 @@ Each checkbox should normally be a separate change with focused regression tests
     AI selection/write guards exclude history. Missing files do not revive it.
     Submitted/Incomplete/Not Started and grade-presence/zero-score tests pass;
     report counters/totals avoid int16 overflow. Full Go tests/vet pass.
-  - [ ] R13c: Detail defaults/history UI, statistics display and final verification.
+  - [x] R13c: Detail opens current; student history selector is read-only, with
+    backend 409 protection. Summary/CSV distinguish absent grades and zero; UI
+    explains Incomplete/Not Started and reports membership conflicts. Four Node
+    submission-state tests, date/time tests, frontend lint/typecheck/build passed.
+    Lint remains 74 warnings. All frontend files match the external checked copy;
+    no packages or schema changes. Backend final full/focused checks and vet pass.
   Acceptance: deterministic summaries and documented constraints; any schema change
   is reviewed separately with migration and rollback considerations. No schema
   changes or historical deletion are authorized for this implementation.
@@ -483,3 +488,13 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   PostgreSQL, a local provider fake, and a controlled queue adapter. Real Redis
   scheduling/restart validation remains Q1; template/library writes Q6. No frontend,
   packages, live application startup, existing DB or deployment changes performed.
+
+- 2026-10-26 (R13): `f3d626e` resolves membership/extension duplicates consistently;
+  `1b3be6f` adds one current mutable submission, retained student-read-only history,
+  current-only reports/ZIP/AI and correct activity/grade statistics. The frontend
+  adds current defaults, readable history, guarded edits and grade-presence display.
+  Full Go tests/vet, four submission-state tests, datetime tests, lint (74 existing
+  warnings), typecheck, build and diff checks passed. No schema/index/migration,
+  historical deletion, package/tool install or deployment performed. Disposable
+  PostgreSQL had zero fixture schemas and was stopped. Real Redis/flow E2E remain
+  Q1/Q2; direct writers bypassing application locks need separate constraint review.

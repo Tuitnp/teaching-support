@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:datetime": "node --test tests/datetime.test.mjs"
+    "test:datetime": "node --test tests/datetime.test.mjs",
+    "test:submissions": "node --test tests/submission-record.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

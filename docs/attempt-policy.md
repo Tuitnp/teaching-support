@@ -30,6 +30,12 @@ width. CSV student/assignment order and ZIP student order are deterministic. Sub
 is Submitted divided by active students. Graded/ungraded and score statistics use
 only the current file-bearing record; an explicitly graded zero is a valid score.
 
+The detail page opens the current record. Students can choose earlier records in
+Submission history; their content and visible feedback remain readable while edit
+controls and historical PUTs are blocked. Membership conflicts show a resolution
+message. Frontend state/grade tests run with `npm run test:submissions` using Node
+24, alongside existing datetime tests; no test dependency was added.
+
 ## Memberships and extensions
 
 Identical membership role/status duplicates collapse in reads. Conflicting rows
@@ -55,7 +61,8 @@ must use the same row. Extension writes serialize on the assignment row.
 
 ## Constraints and future schema review
 
-No fields, indexes, database migrations or historical cleanup are added by R13.
+No persistence fields, indexes, database migrations or historical cleanup are
+added by R13. The is_current/has_grade fields are computed response metadata.
 Course/assignment row locks serialize supported application writes. They do not
 protect against direct SQL, imports or old writers that bypass these paths.
 Canonical selection and conflict checks remain necessary for legacy data.
