@@ -142,33 +142,37 @@ func GetVisibleAssignments(courseID string) ([]models.Assignment, error) {
 
 func UpdateAssignment(id string, updates map[string]any) error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		assignment, err := lockAssignment(tx, id)
-		if err != nil {
-			return err
-		}
-		previousMaximum := assignment.Point
-		if value, ok := updates["point"].(int16); ok {
-			assignment.Point = value
-		}
-		if value, ok := updates["start_date"].(time.Time); ok {
-			assignment.StartDate = value
-		}
-		if value, ok := updates["due_date"].(time.Time); ok {
-			assignment.DueDate = value
-		}
-		if value, ok := updates["close_date"].(time.Time); ok {
-			assignment.CloseDate = value
-		}
-		if err := models.ValidateAssignmentValues(assignment.Point, assignment.StartDate, assignment.DueDate, assignment.CloseDate); err != nil {
-			return err
-		}
-		if assignment.Point < previousMaximum {
-			if err := checkMaximumPoints(tx, id, assignment.Point); err != nil {
-				return err
-			}
-		}
-		return tx.Model(&models.Assignment{}).Where("id = ?", id).Updates(updates).Error
+		return updateAssignment(tx, id, updates)
 	})
+}
+
+func updateAssignment(tx *gorm.DB, id string, updates map[string]any) error {
+	assignment, err := lockAssignment(tx, id)
+	if err != nil {
+		return err
+	}
+	previousMaximum := assignment.Point
+	if value, ok := updates["point"].(int16); ok {
+		assignment.Point = value
+	}
+	if value, ok := updates["start_date"].(time.Time); ok {
+		assignment.StartDate = value
+	}
+	if value, ok := updates["due_date"].(time.Time); ok {
+		assignment.DueDate = value
+	}
+	if value, ok := updates["close_date"].(time.Time); ok {
+		assignment.CloseDate = value
+	}
+	if err := models.ValidateAssignmentValues(assignment.Point, assignment.StartDate, assignment.DueDate, assignment.CloseDate); err != nil {
+		return err
+	}
+	if assignment.Point < previousMaximum {
+		if err := checkMaximumPoints(tx, id, assignment.Point); err != nil {
+			return err
+		}
+	}
+	return tx.Model(&models.Assignment{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func DeleteAssignment(assignment *models.Assignment) error {

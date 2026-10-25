@@ -767,3 +767,26 @@ and `git diff --check` passed. Checks used GOMAXPROCS=2, offline cached modules,
 and an external disposable cluster/log directory. Assignment writes and queue/worker
 recovery are the next R12 parts; R12 is not yet marked complete. No frontend,
 packages, live services, schema or deployment configuration changed.
+
+
+## R12b assignment content and extension atomicity
+
+Measured: 2026-10-25 (Asia/Bangkok). Assignment creation/edit now stages uploads,
+then commits attachment metadata, scalar fields, normalized tags and both join
+sets together. Edit response loading is inside the transaction; current date/max
+checks still run under the assignment lock. Tag resolution tolerates existing
+names and races through the existing unique name constraint. Existing extensions
+are updated in place under the same assignment lock, rechecking the current due.
+No new schema constraints or migration were added. Duplicate override policy is R13.
+
+Ten `TestAssignmentContentAtomicity` create/edit scenarios cover failures in
+attachment metadata, tag creation and both joins, plus successful full content.
+Failed writes preserve DB snapshots and prior bytes, while retaining the staged
+upload as required by R6. `TestOverrideFailurePreservesExtension` verifies rollback
+of an injected update failure. These passed, as did the existing R9 assignment/
+template input matrix and real concurrent bound checks.
+`go vet -mod=readonly -p 1 ./internal/repository ./internal/service ./internal/handler`
+and `git diff --check` passed. PostgreSQL/logs remain disposable and external.
+Template/library multi-step writes are outside this assignment fix; no frontend,
+packages, application startup, live database, or deployment changes occurred.
+Queue/worker recovery remains the final R12 part.

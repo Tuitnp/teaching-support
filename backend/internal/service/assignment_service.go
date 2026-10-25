@@ -9,8 +9,8 @@ import (
 
 	"time"
 
-	"github.com/6510615294/Tech-Support-CN101/backend/internal/logger"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
+	"github.com/6510615294/Tech-Support-CN101/backend/internal/logger"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/queue"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/repository"
@@ -31,12 +31,7 @@ func CreateAssignment(
 		return nil, err
 	}
 
-	attachments, err := handleAttachments(userID, form.Attachments, files)
-	if err != nil {
-		return nil, err
-	}
-
-	tags, err := resolveTags(form.Tags)
+	attachments, err := prepareAttachments(userID, form.Attachments, files)
 	if err != nil {
 		return nil, err
 	}
@@ -50,13 +45,12 @@ func CreateAssignment(
 		DueDate:     values.DueDate,
 		CloseDate:   values.CloseDate,
 		Attachments: attachments,
-		Tags:        tags,
 		AIConfigID:  form.AIConfigID,
 		Prompt:      form.Prompt,
 		Visible:     form.Visible,
 	}
 
-	if err := repository.CreateAssignment(&assignment); err != nil {
+	if err := repository.CreateAssignmentContent(&assignment, form.Tags); err != nil {
 		return nil, err
 	}
 
@@ -180,7 +174,7 @@ func UpdateAssignment(
 	if err := validateAIReference(userID, form.AIConfigID); err != nil {
 		return nil, err
 	}
-	attachments, err := handleAttachments(userID, form.Attachments, files)
+	attachments, err := prepareAttachments(userID, form.Attachments, files)
 	if err != nil {
 		return nil, err
 	}
@@ -221,28 +215,7 @@ func UpdateAssignment(
 
 	updates["visible"] = form.Visible
 
-	if len(updates) > 0 {
-		if err := repository.UpdateAssignment(assignmentID, updates); err != nil {
-			return nil, err
-		}
-	}
-	if err := repository.ReplaceAssignmentAttachments(
-		assignmentID,
-		attachments,
-	); err != nil {
-		return nil, err
-	}
-
-	tags, err := resolveTags(form.Tags)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := repository.ReplaceAssignmentTags(assignmentID, tags); err != nil {
-		return nil, err
-	}
-
-	assignment, err = repository.GetAssignmentWithRelations(courseID, assignmentID)
+	assignment, err = repository.UpdateAssignmentContent(courseID, assignmentID, updates, attachments, form.Tags)
 	if err != nil {
 		return nil, err
 	}
@@ -316,26 +289,7 @@ func CreateAssignmentOverride(
 		return nil, errors.ErrDueDateBeforeAssignment
 	}
 
-	// Check if there's an existing override for this student and assignment
-	existingOverride, err := repository.GetAssignmentOverride(assignmentID, form.StudentID)
-	if err != nil {
-		return nil, err
-	}
-
-	// If an override exists, delete it first
-	if existingOverride != nil {
-		if err := repository.DeleteAssignmentOverride(existingOverride); err != nil {
-			return nil, err
-		}
-	}
-
-	override := models.AssignmentOverride{
-		AssignmentID:    assignmentID,
-		StudentID:       form.StudentID,
-		ExtendedDueDate: form.ExtendedDueDate.UTC(),
-	}
-
-	return repository.CreateAssignmentOverride(&override)
+	return repository.ReplaceAssignmentOverride(courseID, assignmentID, form.StudentID, form.ExtendedDueDate.UTC())
 }
 
 func GetAssignmentSummary(courseID, assignmentID string) (*models.ResponseAssignmentSummary, error) {

@@ -253,7 +253,10 @@ Each checkbox should normally be a separate change with focused regression tests
   - [x] R12a: Atomic manual score/feedback writes and serialized authored upserts.
     PostgreSQL failure tests cover score, comment insert/update rollback, retry
     identity, and concurrent feedback; R1/R9/R11 related checks pass.
-  - [ ] R12b: Atomic assignment content/override writes with uploads staged first.
+  - [x] R12b: Atomic assignment content/override writes with uploads staged first.
+    Create/edit failure tests cover metadata, tags and both joins, preserving old
+    content; extension update failure preserves the previous row. Existing R9
+    input/concurrent-bound checks pass. Staged bytes are retained for cleanup.
   - [ ] R12c: Recoverable enqueue, bounded attempts and honest worker/retry states.
   F3 also identified `asynq.Timeout(60)` in the queue client: the locked API accepts
   a `time.Duration`, so this is not a declared 60-second limit. Verify the intended

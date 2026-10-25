@@ -258,7 +258,24 @@ func resolveTags(names []string) ([]models.Tag, error) {
 	return result, nil
 }
 
-func handleAttachments(
+// prepareAttachments stages storage bytes without committing metadata/references.
+// Bytes are retained after failure or an uncertain commit, as in R6.
+func handleAttachments(userID string, existingIDs []string, files []*multipart.FileHeader) ([]models.Attachment, error) {
+	attachments, err := prepareAttachments(userID, existingIDs, files)
+	if err != nil {
+		return nil, err
+	}
+	for i := range attachments {
+		if attachments[i].ID == "" {
+			if err := repository.CreateAttachment(&attachments[i]); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return attachments, nil
+}
+
+func prepareAttachments(
 	userID string,
 	existingIDs []string,
 	files []*multipart.FileHeader,
@@ -308,10 +325,6 @@ func handleAttachments(
 			FileKey:  fileKey,
 			Size:     file.Size,
 			UserID:   userID,
-		}
-
-		if err := repository.CreateAttachment(&att); err != nil {
-			return nil, err
 		}
 
 		attachments = append(attachments, att)
