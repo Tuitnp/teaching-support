@@ -65,6 +65,7 @@ func ToggleComment(
 	courseID,
 	submissionID,
 	commentID,
+	userID,
 	role string,
 ) (*models.ResponseComment, error) {
 
@@ -80,7 +81,7 @@ func ToggleComment(
 	allowed :=
 		models.HasPermission(role, "assignment:comment_any") ||
 			(models.HasPermission(role, "assignment:comment_own") &&
-				string(comment.CreatedByRole) == role)
+				comment.CreatedBy == userID && string(comment.CreatedByRole) == role)
 
 	if !allowed {
 		return nil, errors.ErrForbidden

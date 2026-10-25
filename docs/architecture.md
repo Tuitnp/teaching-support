@@ -36,7 +36,9 @@ flowchart LR
 Pages/components call the Go API directly using `NEXT_PUBLIC_API_URL`. Authentication
 and screen state use React context/local state; this is not a Next.js API-route or
 server-action backend. Frontend DTOs and fetch handling are handwritten in multiple
-components. Client redirects and hidden controls do not enforce server permission.
+components. Client redirects and hidden controls do not enforce server permission. R11 TA
+grants, scope, grade precedence and per-permission reasons are in
+[permissions.md](permissions.md).
 
 The Go layering is useful but not a strict dependency-injection boundary:
 middleware queries the DB, and services/workers call storage and queue packages.

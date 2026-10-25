@@ -702,3 +702,48 @@ application startup, migrations, schema/deployment configuration or production
 operations were introduced. Test cluster/logs are outside the repository and are
 reused for the separately authorized R11 checks before shutdown. Shared-file
 deletion/cleanup and legacy duplicate membership policy remain separate work.
+
+
+## R11 delegated TA permissions and manual authority
+
+Measured: 2026-10-25 (Asia/Bangkok). The user authorized choosing teacher-like TA
+powers with fewer critical permissions and requested the reason for each choice.
+`docs/permissions.md` records every permission, global/course scope, the eight
+TA grants, and the teacher-only critical operations. Admin/student/teacher grants
+and existing global role assignments are unchanged. No schema change is needed.
+
+TA course membership now permits unreleased assignment/submission reads, summaries,
+roster access, individual files, own feedback and initial/AI-grade review. Teachers
+retain correction authority for all manual grades. TA writes protect teacher/TA,
+unknown, empty-grader and unattributed grades. A shared model predicate is checked
+both before writing and under assignment then submission locks. Comment-own
+visibility now checks author ID and role, protecting other TAs' feedback. A denied
+course delete used Fiber's error with an application-only translator and returned
+500; its gate now returns the application's 403 error.
+
+Focused command passed:
+`go test -mod=readonly -p 1 -count=1 -timeout 120s ./internal/handler -run
+'TestTA|TestManualGradeRolePrecedence|TestSubmissionAccessControls' -v`.
+Five new groups cover 100 cases: 17 scoped read/global-role/status controls,
+48 teacher/TA/student cases across both grade routes and prior grader states,
+seven authored-feedback cases, 26 critical-operation denials, and two real
+PostgreSQL concurrent teacher/TA writes. The existing R1 TA read expectation now
+permits authorized staff access. Denied operations preserve data and avoid storage.
+The initial focused runs caught the course-delete status bug above plus test
+fixture omissions (full course columns and the correct AI-config URL); those were
+corrected and the final focused run passed without skips.
+
+Full `go test -mod=readonly -p 1 -count=1 -timeout 120s ./...` and
+`go vet -mod=readonly -p 1 ./...` passed with the explicit disposable PostgreSQL URL,
+including R1-R10, AI worker and storage regressions. `git diff --check` passed.
+Checks ran sequentially with GOMAXPROCS=2, offline cached modules, and all scratch,
+DB and logs outside the repository. Zero fixture schemas remained; PostgreSQL was
+stopped and its port confirmed closed. No existing database, application startup,
+real credentials/student data, production services, packages/tools, migrations or
+deployment configuration were involved.
+
+No frontend source changed, so frontend checks were not repeated. Existing
+frontend controls do not fully express TA permissions or individual feedback
+authorship; Q5 tracks this UI alignment. Backend scope/authority are enforced
+regardless of controls. Manual score/comment failure atomicity remains R12;
+duplicate memberships, feedback release and job recovery remain separate work.

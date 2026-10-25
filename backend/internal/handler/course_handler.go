@@ -199,7 +199,7 @@ func deleteCourse(c fiber.Ctx) error {
 		log.Error("course_delete_failed",
 			"error", errors.ErrForbidden,
 		)
-		return SendError(c, fiber.ErrForbidden)
+		return SendError(c, errors.ErrForbidden)
 	}
 
 	err := service.DeleteCourse(courseID)

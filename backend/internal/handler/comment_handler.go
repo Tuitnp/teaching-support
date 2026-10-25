@@ -15,9 +15,9 @@ func RegisterCommentRoutes(app fiber.Router) {
 
 func createOrUpdateComment(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("comment_create_or_update_attempt")
-	
+
 	courseID := c.Params("course_id")
 	userID := c.Locals("user_id").(string)
 	role := c.Locals("course_role").(string)
@@ -50,18 +50,19 @@ func createOrUpdateComment(c fiber.Ctx) error {
 		"course_id", courseID,
 		"submission_id", submissionID,
 	)
-	
+
 	return c.JSON(data)
 }
 
 func toggleComment(c fiber.Ctx) error {
 	log := logger.WithRequest(c)
-	
+
 	log.Info("comment_toggle_attempt")
-	
+
 	courseID := c.Params("course_id")
 	submissionID := c.Params("submission_id")
 	commentID := c.Params("comment_id")
+	userID := c.Locals("user_id").(string)
 	role := c.Locals("course_role").(string)
 
 	if !models.HasPermission(role, "assignment:comment") {
@@ -71,7 +72,7 @@ func toggleComment(c fiber.Ctx) error {
 		return SendError(c, errors.ErrForbidden)
 	}
 
-	data, err := service.ToggleComment(courseID, submissionID, commentID, role)
+	data, err := service.ToggleComment(courseID, submissionID, commentID, userID, role)
 	if err != nil {
 		log.Error("comment_toggle_failed",
 			"error", err,
@@ -84,6 +85,6 @@ func toggleComment(c fiber.Ctx) error {
 		"submission_id", submissionID,
 		"comment_id", commentID,
 	)
-	
+
 	return c.JSON(data)
 }

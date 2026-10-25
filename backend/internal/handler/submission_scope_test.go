@@ -326,7 +326,7 @@ func TestSubmissionAccessControls(t *testing.T) {
 			case "teacher-update":
 				method, suffix, action, want = http.MethodPut, "", "update", 403
 			case "ta":
-				actor, want = f.ta, 403
+				actor = f.ta
 			case "admin":
 				actor, want = f.admin, 403
 			case "inactive", "withdraw", "drop":
@@ -356,7 +356,7 @@ func TestSubmissionAccessControls(t *testing.T) {
 				return
 			}
 			switch scenario {
-			case "teacher-read", "owner-read", "global-student-course-teacher", "uppercase-ids":
+			case "teacher-read", "owner-read", "global-student-course-teacher", "uppercase-ids", "ta":
 				var content string
 				if err := json.Unmarshal(body, &content); err != nil || content != "answer: "+f.own {
 					t.Errorf("wrong answer: %s", body)

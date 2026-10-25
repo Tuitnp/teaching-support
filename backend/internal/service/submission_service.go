@@ -107,7 +107,7 @@ func UpdateGrade(
 		return nil, err
 	}
 
-	if !canGradeSubmission(role, submission) {
+	if !models.CanManuallyGradeSubmission(role, submission) {
 		return nil, errors.ErrForbidden
 	}
 
@@ -140,7 +140,7 @@ func UpdateGradeAndComment(
 		return nil, err
 	}
 
-	if !canGradeSubmission(role, submission) {
+	if !models.CanManuallyGradeSubmission(role, submission) {
 		return nil, errors.ErrForbidden
 	}
 
@@ -239,7 +239,7 @@ func prepareSubmissionFile(userID string, file *multipart.FileHeader) (*models.A
 		FileName: file.Filename,
 		FileType: file.Header.Get("Content-Type"),
 		FileKey:  fileKey,
-		Size: 	  file.Size,
+		Size:     file.Size,
 		UserID:   userID,
 	}
 
@@ -254,23 +254,6 @@ func handleAttachmentUpdate(
 		return nil, nil
 	}
 	return prepareSubmissionFile(userID, file)
-}
-
-func canGradeSubmission(role string, s *models.Submission) bool {
-	switch role {
-
-	case "teacher":
-		return true
-
-	case "ta":
-		if s.GradedBy == nil {
-			return true
-		}
-		return *s.GradedBy == "ai"
-
-	default:
-		return false
-	}
 }
 
 func checkSubmissionWindow(assignment *models.Assignment, userID string, now time.Time) error {

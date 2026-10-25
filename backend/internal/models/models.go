@@ -74,10 +74,37 @@ var RolePermissions = map[string][]string{
 		"submission:delete",
 		"file:read_own",
 	},
+	"ta": {
+		"course:view_own",
+		"member:view_all",
+		"assignment:view_all",
+		"assignment:comment",
+		"assignment:comment_own",
+		"assignment:grade",
+		"submission:view_all",
+		"file:read_all",
+	},
 }
 
 func HasPermission(role string, permission string) bool {
 	return slices.Contains(RolePermissions[role], permission)
+}
+
+// Teachers retain final authority. TAs may supply an initial grade or review an
+// AI grade, but cannot replace any human, unknown, or unattributed existing grade.
+func CanManuallyGradeSubmission(role string, submission *Submission) bool {
+	if !HasPermission(role, "assignment:grade") {
+		return false
+	}
+	switch Role(role) {
+	case RoleTeacher:
+		return true
+	case RoleTeacherAssistance:
+		return (submission.Point == nil && submission.GradedBy == nil) ||
+			(submission.GradedBy != nil && *submission.GradedBy == string(RoleAI))
+	default:
+		return false
+	}
 }
 
 type User struct {

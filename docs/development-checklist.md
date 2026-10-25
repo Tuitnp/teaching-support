@@ -225,9 +225,20 @@ Each checkbox should normally be a separate change with focused regression tests
   Evidence: `attachment_access_test.go` in handler/service covers release boundaries,
   status/role scoping, multiple references, owner-only files, and DB lookup failures;
   denied requests access no storage and downloads change no records.
-- [ ] **R11: Define and implement TA permissions.** The role exists but has no
-  permission-map entry. See `backend/internal/models/models.go` and handler gates.
+- [x] **R11: Define and implement TA permissions.** The user delegated TA choices;
+  every allow/deny decision and its reason is in `docs/permissions.md`. Eight TA
+  grants support active-course staff reads, individual files, own feedback, and
+  initial/AI grading. Course/member administration, assignment authoring/scheduling/
+  destruction, exports/ZIP, global templates, AI and Python stay with teachers.
+  Global/course role scopes remain independent; admin gains no grants.
   Acceptance: approved teacher/TA/student actions have explicit allow/deny tests.
+  Evidence: `backend/internal/handler/ta_permissions_test.go` covers read scope,
+  status/global-role differences, critical denials, both grade routes and authored
+  feedback. TAs cannot overwrite any manual/unknown/unattributed grade or toggle
+  another author's feedback. Real concurrent-write tests verify human-grade
+  protection under assignment/submission locks. Existing R1 TA read expectation
+  now allows the approved access. Course-delete denial now correctly returns 403.
+  Grade/comment failure atomicity remains R12; frontend controls remain Q5.
 - [ ] **R12: Make partial writes and job recovery reliable.** Review grade/comment
   atomicity, assignment edits, queue-enqueue failures, early worker failures, and
   retries. See assignment/submission services, `backend/internal/queue/`, and
@@ -247,7 +258,7 @@ Each checkbox should normally be a separate change with focused regression tests
 
 Decisions to settle alongside the relevant item: allowed attempts; upload versus
 submission timestamps and extension effects on due/close (settled by R8); manual-role precedence
-and regrade authority (R4 settles human-over-AI precedence); TA rights; student Python execution; submission file presence (settled by R9);
+and regrade authority (R4/R11 settle AI/manual precedence and TA rights); student Python execution; submission file presence (settled by R9);
 and whether text answers or multi-section distribution are actually required.
 Do not infer these requirements from the historical plan.
 
@@ -291,6 +302,14 @@ authorization for their side effects; existing user authorization still applies.
 - [ ] **Q4: Extract large components only when a task benefits.** AI settings,
   assignment dialogs, and grading are hotspots. Prefer focused extraction of tested
   behavior over a broad architecture rewrite or speculative dependency cleanup.
+- [ ] **Q5: Align frontend controls with course permissions.** Some controls use
+  global teacher checks or treat every nonstudent as teacher. Grading combines
+  score/comment writes and identifies authored feedback by role, so it cannot
+  reliably represent separate TA feedback authors or comment-only edits after a
+  human grade. Use the R11 matrix without granting new powers. Acceptance: TA can
+  read/review and submit own feedback, allowed grading states are clear, critical
+  controls follow actual course authority, and API-denied operations stay denied.
+  Add author metadata only as needed; preserve student feedback visibility.
 - [ ] **T1: Decide whether navigation tooling is needed.** Start with `rg`, Git,
   focused source reads, existing editor navigation, and short docs. If repeated
   discovery is expensive, trial only one of Graphify, Serena, or Repomap on a UI
@@ -403,3 +422,14 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   regression for missing assignments; that contract was restored and the full run
   passed. Disposable test schemas were removed and PostgreSQL stopped. No packages,
   schema, infrastructure, deployment or frontend code changed.
+
+- 2026-10-25 (R10, `8537edd`): Implemented the approved owner/active-reference
+  download policy, including student release gates and any-authorized-reference
+  reuse. Passed 35 new HTTP controls and four boundary unit cases, full Go
+  tests/vet and diff checks. Existing nested reads/ZIP gates are preserved.
+- 2026-10-25 (R11): Implemented delegated TA permission choices and documented each
+  reason in `docs/permissions.md`. One hundred new cases plus existing R1 controls,
+  full Go tests/vet and diff checks passed, including real concurrent manual-grade
+  protection. Author ID now gates own-feedback visibility; course-delete denial
+  returns 403. PostgreSQL fixtures were removed and the disposable cluster stopped.
+  Frontend permission UI alignment remains Q5; manual grade/comment atomicity R12.

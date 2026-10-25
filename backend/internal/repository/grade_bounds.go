@@ -42,6 +42,16 @@ func UpdateManualGrade(assignmentID, submissionID string, point int16, role stri
 		if err := models.ValidateGrade(&point, assignment.Point); err != nil {
 			return err
 		}
+		var submission models.Submission
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND assignment_id = ?", submissionID, assignmentID).First(&submission).Error; err != nil {
+			return err
+		}
+		// Recheck after taking the locks: a teacher may have graded the work
+		// after the service's initial read but before this write.
+		if !models.CanManuallyGradeSubmission(role, &submission) {
+			return errors.ErrForbidden
+		}
 		result := tx.Model(&models.Submission{}).Where("id = ? AND assignment_id = ?", submissionID, assignmentID).Updates(map[string]any{"point": point, "graded_by": role})
 		if result.Error != nil {
 			return result.Error
