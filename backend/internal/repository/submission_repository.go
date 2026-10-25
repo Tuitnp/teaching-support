@@ -103,6 +103,23 @@ func CheckSubmissionInCourse(courseID, submissionID string) error {
 	return err
 }
 
+func CheckSubmissionInAssignment(courseID, assignmentID, submissionID string) error {
+	var submission models.Submission
+
+	err := database.DB.
+		Select("submissions.id").
+		Joins("JOIN assignments ON assignments.id = submissions.assignment_id").
+		Where("submissions.id = ? AND submissions.assignment_id = ? AND assignments.course_id = ?",
+			submissionID, assignmentID, courseID).
+		First(&submission).Error
+
+	if stderrors.Is(err, gorm.ErrRecordNotFound) {
+		return errors.ErrSubmissionNotFound
+	}
+
+	return err
+}
+
 func GetAssignmentSubmissions(assignmentID string) ([]models.Submission, error) {
 	var submissions []models.Submission
 

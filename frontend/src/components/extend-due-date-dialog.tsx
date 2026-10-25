@@ -92,7 +92,7 @@ export default function ExtendDueDateDialog({
         <DialogHeader>
           <DialogTitle>Extend Due Date</DialogTitle>
           <DialogDescription>
-            Set a new extended due date for this student's assignment.
+            Set a new extended due date for this student&apos;s assignment.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>

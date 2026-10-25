@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
+import type { AICredential, AIConfig } from "@/lib/ai-types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -99,8 +100,8 @@ export function EditAssignmentDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // AI setup
-  const [credentials, setCredentials] = useState<any[]>([])
-  const [configs, setConfigs] = useState<any[]>([])
+  const [credentials, setCredentials] = useState<AICredential[]>([])
+  const [configs, setConfigs] = useState<AIConfig[]>([])
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(false)
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(false)
   const [selectedCredentialId, setSelectedCredentialId] = useState("")
@@ -145,9 +146,9 @@ export function EditAssignmentDialog({
       })
       if (!res.ok) throw new Error("Failed to load AI credentials")
       const data = await res.json()
-      const next = Array.isArray(data) ? data : []
+      const next: AICredential[] = Array.isArray(data) ? data : []
       setCredentials(next)
-      setSelectedCredentialId((cur) => (next.length === 0 ? "" : next.some((c: any) => c.id === cur) ? cur : next[0].id))
+      setSelectedCredentialId((cur) => (next.length === 0 ? "" : next.some((c) => c.id === cur) ? cur : next[0].id))
     } catch {
       setCredentials([])
       setSelectedCredentialId("")
@@ -194,7 +195,7 @@ export function EditAssignmentDialog({
         setForm((prev) => ({
           ...prev,
           ai_config_id: data.id,
-          prompt: (assignment as any).prompt ?? prev.prompt,
+          prompt: assignment.prompt ?? prev.prompt,
         }))
       }
       if (data?.id) {
@@ -210,8 +211,8 @@ export function EditAssignmentDialog({
   }, [open])
 
   useEffect(() => {
-    if (open && (assignment as any).ai_config_id) {
-      void fetchConfigDetail((assignment as any).ai_config_id)
+    if (open && assignment.ai_config_id) {
+      void fetchConfigDetail(assignment.ai_config_id)
     }
   }, [open, assignment])
 
@@ -382,8 +383,8 @@ export function EditAssignmentDialog({
         start_date: assignment.start_date ? new Date(assignment.start_date) : null,
         due_date: assignment.due_date ? new Date(assignment.due_date) : null,
         close_date: assignment.close_date ? new Date(assignment.close_date) : null,
-        ai_config_id: (assignment as any).ai_config_id ?? "",
-        prompt: (assignment as any).prompt ?? "",
+        ai_config_id: assignment.ai_config_id ?? "",
+        prompt: assignment.prompt ?? "",
         visible: assignment.visible,
       })
       setTags(assignment.tags || [])
@@ -392,7 +393,7 @@ export function EditAssignmentDialog({
       setTagInput("")
       setErrors({})
       setAttachmentTabOpen(false)
-      setPromptSectionOpen(Boolean((assignment as any).ai_config_id || (assignment as any).prompt))
+      setPromptSectionOpen(Boolean(assignment.ai_config_id || assignment.prompt))
     } else {
       setErrors({})
       setSelectedAttachments([])

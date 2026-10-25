@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
+import type { AICredential, AIConfig } from "@/lib/ai-types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -80,8 +81,8 @@ export function CreateAssignmentTemplateDialog({ onCreated }: CreateAssignmentTe
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // AI setup
-  const [credentials, setCredentials] = useState<any[]>([])
-  const [configs, setConfigs] = useState<any[]>([])
+  const [credentials, setCredentials] = useState<AICredential[]>([])
+  const [configs, setConfigs] = useState<AIConfig[]>([])
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(false)
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(false)
   const [selectedCredentialId, setSelectedCredentialId] = useState("")
@@ -126,9 +127,9 @@ export function CreateAssignmentTemplateDialog({ onCreated }: CreateAssignmentTe
       })
       if (!res.ok) throw new Error("Failed to load AI credentials")
       const data = await res.json()
-      const next = Array.isArray(data) ? data : []
+      const next: AICredential[] = Array.isArray(data) ? data : []
       setCredentials(next)
-      setSelectedCredentialId((cur) => (next.length === 0 ? "" : next.some((c: any) => c.id === cur) ? cur : next[0].id))
+      setSelectedCredentialId((cur) => (next.length === 0 ? "" : next.some((c) => c.id === cur) ? cur : next[0].id))
     } catch {
       setCredentials([])
       setSelectedCredentialId("")

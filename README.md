@@ -1,318 +1,244 @@
-# Tech-Support-CN101
+# Teaching Support Web Application
 
-A tech-support / code-grading platform with an AI-powered backend, Next.js frontend, Judge0 code execution, and full observability via Grafana + Loki.
+Teaching Support provides courses, assignments and reusable templates, file-backed
+student submissions, grading and feedback, assignment statistics, Python execution,
+and optional AI grading. The Go module retains the historical repository name
+`Tech-Support-CN101`.
 
----
+Start with the [development checklist](docs/development-checklist.md),
+[architecture map](docs/architecture.md), [domain rules](docs/domain-rules.md),
+[quality baseline](docs/quality-baseline.md), and [working rules](AGENTS.md).
 
-## Architecture
+## What is verified
 
-```
-                    ┌─────────────────────┐
-                    │   Nginx Proxy Mgr   │
-                    │   (reverse proxy)   │
-                    └─────┬───────┬───────┘
-                          │       │
-               ┌──────────▼──┐ ┌──▼──────────┐
-               │  Frontend   │ │  Backend    │
-               │  Next.js    │ │  Go API     │
-               │  :3000      │ │  :8080      │
-               └─────────────┘ └──┬──────┬───┘
-                                  │      │
-                    ┌─────────────▼┐  ┌──▼──────────┐
-                    │  PostgreSQL  │  │  Redis      │
-                    │  :5432       │  │  (internal) │
-                    └──────────────┘  └─────────────┘
-                                  │
-               ┌──────────────────▼────────────────────┐
-               │              Judge0                    │
-               │  server + workers (internal)           │
-               │  ├── judge0-db (PostgreSQL 16)         │
-               │  └── judge0-redis                      │
-               └────────────────────────────────────────┘
+The 2026-10-24 Windows baseline passed frontend typecheck/build, Go compilation,
+Go vet, and API/worker binary builds. F4 frontend lint passes with 0 errors and
+74 existing warnings (down from 39 errors and 79 warnings);
+frontend tests are not configured. R1 added and passed PostgreSQL-backed HTTP tests
+for nested submission authorization; see the baseline for the required test URL.
+A frontend development-server HTTP smoke check also passed. These results do not verify
+database, university authentication, storage, execution, or grading integrations.
 
-               ┌──────────────┐  ┌──────────────────┐
-               │   MinIO      │  │  Grafana + Loki   │
-               │  :9000 (API) │  │  :3001            │
-               │  :9001 (UI)  │  │  (logs & metrics) │
-               └──────────────┘  └───────────────────┘
-```
+The full Compose stack is **not yet a verified one-command setup**. Resolve the
+configuration blockers below before using it for integration testing. Docker was
+not available on PATH during verification.
 
----
+## Repository layout
 
-## Prerequisites
+| Path | Purpose |
+| --- | --- |
+| `frontend/src/app/` | Next.js App Router pages |
+| `frontend/src/components/` | Shared UI, assignment/template dialogs, editors |
+| `frontend/src/lib/auth-context.tsx` | Client authentication state and API login |
+| `backend/cmd/server/` | Fiber v3 HTTP API on port 8080 |
+| `backend/cmd/worker/` | Asynq background grading worker |
+| `backend/internal/` | Handlers, services, repositories, models, storage, AI adapters |
+| `docker/docker-compose.yml` | Primary full-stack integration configuration |
+| `backend/docker-compose.yml` | Older partial stack; not the setup documented here |
+| `docs/` | Checklist and verified quality results |
 
-- [Docker](https://docs.docker.com/get-docker/) + [Docker Compose](https://docs.docker.com/compose/install/) (v2+)
-- Git
-- (Optional) [Nginx Proxy Manager](https://nginxproxymanager.com/) — for domain/SSL
+The frontend uses React, TypeScript, Tailwind/shadcn components, TipTap, and Monaco.
+The backend uses Fiber, GORM/PostgreSQL, Redis/Asynq, and S3/MinIO/local storage.
+Judge0 executes Python; AI adapters support OpenAI, Anthropic, Google, and custom
+OpenAI-compatible endpoints. Grafana/Loki/Promtail provide log collection/viewing;
+metrics and deployed monitoring behavior have not been verified.
 
----
+## Local compile and frontend development
 
-## Quick Start
+Commands use PowerShell 7 and start at the repository root. Use Git, Go 1.25.3,
+Node.js 24.13.0, and npm 11.9.0 to reproduce the measured host baseline. These are
+observed working versions, not a newly enforced version policy. The frontend
+Dockerfile currently uses Node 25; container compatibility is unverified.
 
-### 1. Clone the repository
+Keep the existing npm lockfile and Go module files. Install only the existing
+application dependencies; no AI tooling is needed.
 
-```bash
-git clone <your-repo-url>
-cd Tech-Support-CN101
-```
+### Frontend
 
-### 2. Configure environment variables
-
-```bash
-cd docker
-cp .env.example .env
-```
-
-Edit `docker/.env` and set your values:
-
-```env
-# App Database
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres          # change in production
-POSTGRES_DB=app_db
-
-# Redis
-REDIS_PASSWORD=redispassword        # change in production
-
-# MinIO
-MINIO_ACCESS_KEY=admin
-MINIO_SECRET_KEY=password           # change in production
-
-# Judge0 (internal — no internet exposure)
-JUDGE0_POSTGRES_DB=judge0
-JUDGE0_POSTGRES_USER=judge0
-JUDGE0_POSTGRES_PASSWORD=judge0password   # change in production
-JUDGE0_REDIS_PASSWORD=judge0redispassword # change in production
-
-# Grafana
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=admin        # change in production
-
-# Frontend — set to your domain or server IP
-NEXT_PUBLIC_API_URL=http://localhost:8080/api
+```powershell
+Set-Location frontend
+$env:NEXT_PUBLIC_API_URL = 'http://127.0.0.1:8080/api'
+$env:NEXT_TELEMETRY_DISABLED = '1'
+npm ci --no-audit --no-fund
+npm exec -- tsc --noEmit --incremental false
+npm run lint
+npm run build
 ```
 
-### 3. Configure backend `.env`
+Lint currently exits with code 0 and reports 74 warnings; record it independently
+of the typecheck/build results. Do not add suppressions to hide failures. The
+install command skips
+npm's vulnerability audit; it is not a security-scan result.
 
-Create `backend/.env` (this is loaded by the API and worker containers):
+To preview the frontend:
 
-```env
-DATABASE_URL=postgres://postgres:postgres@postgres:5432/app_db?sslmode=disable
-JWT_SECRET=your-jwt-secret
-REDIS_ADDRESS=redis:6379
-REDIS_PASSWORD=redispassword
-JUDGE0_URL=http://judge0-server:2358
-
-# MinIO
-MINIO_ENDPOINT=minio:9000
-MINIO_ACCESS_KEY=admin
-MINIO_SECRET_KEY=password
-MINIO_BUCKET=my-bucket
-MINIO_USE_SSL=false
-STORAGE_TYPE=minio
-
-# Other integrations
-TU_API=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=
-AI_SECRET_KEY=
-ENV=production
+```powershell
+npm run dev -- --hostname 127.0.0.1 --port 3300
 ```
 
-> **Important:** The hostnames (`postgres`, `redis`, `minio`, `judge0-server`) are Docker internal names — they work automatically inside containers. Do not use `localhost`.
+Open [the login page](http://127.0.0.1:3300/login). Visiting the root redirects to
+`/login`. Stop the server with Ctrl+C. This previews the frontend without starting
+the backend; login and course operations still require the API and its services.
+See [frontend/README.md](frontend/README.md) for frontend-specific details.
 
-### 4. Start everything
+### Backend compilation
 
-```bash
-cd docker
-docker compose up -d --build
+From a new terminal at the repository root:
+
+```powershell
+Set-Location backend
+$env:GOTOOLCHAIN = 'local'
+go test -mod=readonly ./...
+go vet -mod=readonly ./...
+go build -mod=readonly ./...
 ```
 
-This single command builds and starts **all 14 services**.
+These commands do not start the API or worker. Submission integration tests skip
+unless `TEACHING_SUPPORT_TEST_DATABASE_URL` is supplied. See the baseline's R1
+section for safe test setup and the separately verified API/worker binary builds.
 
-### 5. Verify
+## Runtime configuration
 
-```bash
-docker compose ps
+No credentials are needed for the compilation checks. Runtime integration requires
+dedicated development services and credentials. Do not point development processes
+at an existing or production database: **both API and worker startup run GORM
+AutoMigrate**. MinIO initialization also attempts to create its bucket; local
+storage initialization creates directories.
+
+`backend/internal/config/config.go` loads `.env` from the process working directory.
+For native runs from `backend/`, that means `backend/.env`. However, JWT secrets
+are read during package initialization, before dotenv loads. Until R3 is fixed,
+supply `JWT_SECRET` in the process environment **before** launching Go; setting it
+only in `backend/.env` is insufficient. Tokens currently have no expiry.
+
+| Variables | When needed / actual behavior |
+| --- | --- |
+| `DATABASE_URL` | API and worker startup; PostgreSQL DSN for a disposable database |
+| `JWT_SECRET` | API signing/verification; nonempty process environment value before startup |
+| `REDIS_ADDRESS`, `REDIS_PASSWORD` | Queue/worker connection; address is `host:port`, password must match Redis |
+| `STORAGE_TYPE` | Choose `local`, `minio`, or `s3` explicitly; unset defaults to `s3` |
+| `LOCAL_STORAGE_PATH` | Local storage directory; default `./uploads`; API/worker must share access |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET` | Required for MinIO; endpoint must include its scheme, for example `http://127.0.0.1:9000` for native runs |
+| `MINIO_USE_SSL` | Parsed as a boolean, but currently does not change the endpoint; not an effective TLS switch |
+| `S3_BUCKET`, `AWS_REGION`, AWS credential configuration | S3 storage; AWS SDK default configuration/credential chain is used |
+| `TU_API` | University application key required for actual login/profile requests |
+| `JUDGE0_URL`, `JUDGE0_API_KEY` | Python execution; code requires both and sends the key as `X-API-Key` |
+| `AI_SECRET_KEY` | AI credential encryption/decryption; raw AES key of 16, 24, or 32 bytes, shared by API/worker; preserve it for saved credentials |
+| `ENV`, `SERVICE_NAME` | Logging: `ENV=production` selects JSON logs; service name labels them |
+
+AI provider keys are entered through the application's credential workflow and
+stored encrypted in PostgreSQL. An `OPENAI_API_KEY` environment variable is not an
+application setup requirement in the current source. There is no documented local
+authentication bypass or seeded account; actual login calls university services.
+
+For a native development session, first provision an empty PostgreSQL database
+and a development Redis instance independently. In a terminal whose working
+directory is `backend/`, set `DATABASE_URL`, `REDIS_ADDRESS`, `REDIS_PASSWORD`,
+and a generated `JWT_SECRET` in the environment. Set `STORAGE_TYPE=local` and
+`LOCAL_STORAGE_PATH` to a dedicated external development directory to avoid
+committing uploaded files. Add integration-specific variables only when needed.
+After verifying those targets, the entry points are:
+
+```powershell
+# API: only against the dedicated disposable database
+go run -mod=readonly ./cmd/server
 ```
 
-You should see all services running. Check health:
+For the worker, use a separate terminal with the same
+database/queue/storage/AI key settings:
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| Frontend | http://localhost:3000 | Web UI |
-| Backend API | http://localhost:8080 | REST API |
-| MinIO Console | http://localhost:9001 | File storage UI |
-| Grafana | http://localhost:3001 | Logs & monitoring |
-
----
-
-## Service Overview
-
-| Service | Container | Host Port | Exposed | Purpose |
-|---------|-----------|-----------|---------|---------|
-| PostgreSQL 18 | `postgres` | 5432 | Yes | App database |
-| Redis 7 | `redis` | — | No | Job queue / cache |
-| MinIO | `minio` | 9000, 9001 | Yes | S3-compatible file storage |
-| Backend API | `go-api` | 8080 | Yes | Go REST API server |
-| Backend Worker | `go-worker` | — | No | Background job processor |
-| Frontend | `frontend` | 3000 | Yes | Next.js web app |
-| Judge0 Server | `judge0-server` | — | No | Code execution engine |
-| Judge0 Workers | `judge0-workers` | — | No | Code execution workers |
-| Judge0 DB | `judge0-db` | — | No | Judge0 PostgreSQL |
-| Judge0 Redis | `judge0-redis` | — | No | Judge0 job queue |
-| Loki | `loki` | — | No | Log aggregation |
-| Promtail | `promtail` | — | No | Log shipper |
-| Grafana | `grafana` | 3001 | Yes | Observability dashboard |
-
----
-
-## Connecting Nginx Proxy Manager
-
-If you already have Nginx Proxy Manager (NPM) running, connect it to the Docker network so it can route traffic to your services.
-
-### Option A: Connect existing NPM container
-
-```bash
-# Find your NPM container name
-docker ps | grep nginx-proxy-manager
-
-# Connect it to the public network
-docker network connect docker_public <your-npm-container-name>
+```powershell
+go run -mod=readonly ./cmd/worker
 ```
 
-### Option B: Add NPM to the compose
+These runtime commands were not executed during F1/F2. The API listens on all
+interfaces at port 8080; use a controlled local environment. Start the worker only
+when testing grading jobs, as queued tasks can call paid AI providers and write
+scores/comments.
 
-Add this to the `services:` section in `docker/docker-compose.yml`:
+## Compose integration configuration
 
-```yaml
-  nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
-    container_name: nginx-proxy-manager
-    ports:
-      - "80:80"       # HTTP
-      - "443:443"     # HTTPS
-      - "81:81"       # NPM Admin UI
-    volumes:
-      - npm_data:/data
-      - npm_letsencrypt:/etc/letsencrypt
-    restart: unless-stopped
-    <<: [*default-logging, *default-networks]
+Use `docker/docker-compose.yml` for future full-stack integration work.
+`backend/docker-compose.yml` omits the frontend, MinIO, and Judge0, differs in Redis
+version and persistence, and conflicts with frontend port 3000 through Grafana.
+Do not start both stacks together.
+
+The primary file defines **13 services**: API, worker, frontend, PostgreSQL,
+application Redis, MinIO, Judge0 server/workers/database/Redis, Loki, Promtail, and
+Grafana. It publishes these host ports:
+
+| Service | Host port(s) |
+| --- | --- |
+| Frontend | 3000 |
+| API | 8080 |
+| PostgreSQL | 5432 |
+| MinIO API / console | 9000 / 9001 |
+| Grafana | 3001 |
+
+Other services have no host port mappings. Both named networks are shared bridge
+networks; the name `private` does not itself provide an isolated execution boundary.
+Judge0 containers are privileged. Use a disposable Linux Docker environment for
+integration validation; the log shipper mounts Linux Docker container paths.
+Fixed container names and ports mean a different Compose project name alone does
+not guarantee separation from existing services.
+
+Two environment files have different roles:
+
+- `docker/.env` supplies Compose interpolation, using `docker/.env.example` as a
+  list of variables for databases, Redis, MinIO, Grafana, and frontend build URL.
+- `backend/.env` supplies API/worker runtime variables via Compose `env_file`.
+  Explicit Compose `environment` entries override the corresponding values.
+  JWT configuration supplied this way exists before Go package initialization.
+
+Both local `.env` files are ignored. Do not use the tracked `backend/.env copy`
+as a secure template; it contains fixed credential defaults. Fill values using
+development credentials and the runtime table above. No `.dockerignore` exists
+yet, so a local environment file may enter a Docker build context (O2).
+
+### Blockers before a full-stack start
+
+1. **O1: MinIO endpoint.** API and worker explicitly override `MINIO_ENDPOINT` with
+   `minio:9000`; the storage adapter uses it directly as a URL. A
+   `backend/.env` value cannot correct that override. The integration endpoint
+   needs its scheme; the source/Compose repair is separate work.
+2. **O1: Judge0 configuration.** The API requires `JUDGE0_API_KEY`, which the
+   existing examples omit. Verify engine authentication against the actual
+   `X-API-Key` header instead of assuming any nonempty key secures Judge0.
+   Passwords in mounted `docker/judge0.conf` are static, not interpolated from
+   `docker/.env`; keep its DB/Redis settings consistent with those containers.
+3. **O3: Readiness and persistence.** The primary stack has no readiness
+   healthchecks, application Redis has no durable volume, and both Go processes
+   migrate the same schema at startup. Integration startup/recovery needs validation.
+
+After creating dedicated development configuration and resolving these blockers,
+run the following **from the repository root**, first validating without starting
+services:
+
+```powershell
+docker compose --env-file docker/.env -f docker/docker-compose.yml config --quiet
 ```
 
-Add to the `volumes:` section:
+Then, only in the disposable integration environment:
 
-```yaml
-  npm_data:
-  npm_letsencrypt:
+```powershell
+docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build
+docker compose --env-file docker/.env -f docker/docker-compose.yml ps
+docker compose --env-file docker/.env -f docker/docker-compose.yml logs --tail 100 api worker
 ```
 
-### Proxy Host configuration
+A running container list does not prove the application integrations work. Verify
+login, upload/download, submission/grade persistence, queue completion, and Judge0
+separately after setup repairs. Do not publish logs containing credentials or
+student content. Stop the disposable stack with `docker compose --env-file
+docker/.env -f docker/docker-compose.yml down`; volume deletion is a separate,
+destructive operation.
 
-In NPM Admin UI (`http://your-server:81`), create these **Proxy Hosts**:
+Reverse-proxy, TLS, Coolify, backups, and production rollout require their own
+verified deployment procedure. No reverse proxy is included in this Compose file.
+Do not use an image pull or production deployment as a local setup check.
 
-| Domain | Scheme | Forward Host | Forward Port | SSL |
-|--------|--------|--------------|--------------|-----|
-| `yourdomain.com` | http | `frontend` | `3000` | Enable Let's Encrypt |
-| `api.yourdomain.com` | http | `api` | `8080` | Enable Let's Encrypt |
-| `grafana.yourdomain.com` | http | `grafana` | `3000` | Enable Let's Encrypt |
-| `minio.yourdomain.com` | http | `minio` | `9001` | Enable Let's Encrypt |
-| `s3.yourdomain.com` | http | `minio` | `9000` | Enable Let's Encrypt |
+## Next work
 
-> **Note:** Use the **container port** (internal), not the host port. For example Grafana's internal port is `3000` even though it's mapped to `3001` on the host.
-
-### When using NPM, update these values
-
-1. `docker/.env` → `NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api`
-2. Rebuild frontend: `docker compose up -d --build frontend`
-
----
-
-## Directory Structure
-
-```
-Tech-Support-CN101/
-├── backend/                  # Go backend
-│   ├── cmd/
-│   │   ├── server/           # API entrypoint
-│   │   └── worker/           # Worker entrypoint
-│   ├── internal/             # Business logic
-│   ├── Dockerfile
-│   ├── go.mod / go.sum
-│   └── .env                  # Backend config (gitignored)
-│
-├── frontend/                 # Next.js frontend
-│   ├── src/
-│   ├── public/
-│   ├── Dockerfile
-│   ├── package.json
-│   └── next.config.ts
-│
-├── docker/                   # Unified Docker setup
-│   ├── docker-compose.yml    # Single compose — everything
-│   ├── .env                  # Docker env vars
-│   ├── judge0.conf           # Judge0 configuration
-│   ├── promtail-config.yml   # Log shipping config
-│   ├── init-db.sql           # Database init script
-│   └── grafana/
-│       ├── dashboards/       # Pre-built dashboards
-│       └── provisioning/     # Datasource & dashboard auto-config
-│
-└── README.md
-```
-
----
-
-## Useful Commands
-
-```bash
-# Start all services
-docker compose up -d --build
-
-# Stop all services
-docker compose down
-
-# Stop and remove volumes (⚠️ deletes all data)
-docker compose down -v
-
-# View logs
-docker compose logs -f api
-docker compose logs -f worker
-docker compose logs -f judge0-server
-
-# Restart a single service
-docker compose restart api
-
-# Pull latest Judge0 image
-docker compose pull judge0-server judge0-workers
-docker compose up -d
-```
-
----
-
-## Production Checklist
-
-- [ ] Change all default passwords in `docker/.env` and `backend/.env`
-- [ ] Set `NEXT_PUBLIC_API_URL` to your actual domain
-- [ ] Enable SSL via Nginx Proxy Manager (Let's Encrypt)
-- [ ] Remove host port mappings for services that should only be behind NPM
-- [ ] Set `ENV=production` in `backend/.env`
-- [ ] Set up database backups (`pg_dump` cron job)
-- [ ] Review `judge0.conf` submission limits for your use case
-- [ ] Configure MinIO bucket after first run (access via console at `:9001`)
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js, React, TypeScript |
-| Backend | Go (Gin/Echo) |
-| Database | PostgreSQL 18 |
-| Cache / Queue | Redis 7 |
-| Code Execution | Judge0 |
-| File Storage | MinIO (S3-compatible) |
-| Observability | Grafana, Loki, Promtail |
-| Reverse Proxy | Nginx Proxy Manager |
+Follow the checklist for setup repairs (O1-O3), authorization and grading fixes,
+tests, and minimal CI. AI tooling, indexes, graphs, memories, and source exports
+must remain physically outside the repository, including ignored directories.

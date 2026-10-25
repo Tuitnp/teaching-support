@@ -39,6 +39,7 @@ func SetupRoutes(app *fiber.App) {
 	handler.RegisterAssignmentRoutes(assignments)
 	
 	submissions := assignments.Group("/:assignment_id/submissions")
+	submissions.Use("/:submission_id", middleware.SubmissionMiddleware)
 	handler.RegisterSubmissionRoutes(submissions)
 
 	comment := submissions.Group("/:submission_id/comment")

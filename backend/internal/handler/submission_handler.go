@@ -174,13 +174,13 @@ func updateCommentAndGrade(c fiber.Ctx) error {
 
 func readSubmission(c fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
-	role := c.Locals("user_role").(string)
+	role := c.Locals("course_role").(string)
 	submissionID := c.Params("submission_id")
 	
 	content, err := service.ReadSubmission(submissionID, userID, role)
 	
 	if err != nil {
-		return err
+		return SendError(c, err)
 	}
 
 	return c.JSON(content)

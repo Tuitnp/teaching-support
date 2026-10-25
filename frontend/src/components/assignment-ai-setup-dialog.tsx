@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
+import type { AICredential } from "@/lib/ai-types"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -59,7 +60,7 @@ export function AssignmentAISetupDialog({
     onStartGrading,
 }: AssignmentAISetupDialogProps) {
     const { user } = useAuth()
-    const [credentials, setCredentials] = useState<any[]>([])
+    const [credentials, setCredentials] = useState<AICredential[]>([])
     const [configs, setConfigs] = useState<AIConfig[]>([])
     const [isLoadingCredentials, setIsLoadingCredentials] = useState(false)
     const [isLoadingConfigs, setIsLoadingConfigs] = useState(false)
@@ -78,13 +79,13 @@ export function AssignmentAISetupDialog({
             })
             if (!res.ok) throw new Error("Failed to load AI credentials")
             const data = await res.json()
-            const next = Array.isArray(data) ? data : []
+            const next: AICredential[] = Array.isArray(data) ? data : []
             setCredentials(next)
             const currentConfigId = (assignment.ai_config_id ?? "").trim()
             if (currentConfigId) {
                 await fetchConfigDetail(currentConfigId, next)
             } else {
-                setSelectedCredentialId((cur) => (next.length === 0 ? "" : next.some((c: any) => c.id === cur) ? cur : next[0].id))
+                setSelectedCredentialId((cur) => (next.length === 0 ? "" : next.some((c) => c.id === cur) ? cur : next[0].id))
             }
         } catch {
             setCredentials([])
@@ -114,7 +115,7 @@ export function AssignmentAISetupDialog({
         }
     }
 
-    const fetchConfigDetail = async (configId: string, credentialsList?: any[]) => {
+    const fetchConfigDetail = async (configId: string, credentialsList?: AICredential[]) => {
         if (!user?.token || !configId) return
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ai/configs/detail/${configId}`, {
@@ -295,7 +296,7 @@ export function AssignmentAISetupDialog({
                                                 <SelectValue placeholder="Select an AI credential" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {credentials.map((credential: any) => (
+                                                {credentials.map((credential) => (
                                                     <SelectItem key={credential.id} value={credential.id}>
                                                         {credential.name}
                                                     </SelectItem>
@@ -304,7 +305,7 @@ export function AssignmentAISetupDialog({
                                         </Select>
                                         {selectedCredentialId && (
                                             <p className="text-xs text-muted-foreground">
-                                                Provider: {credentials.find((c: any) => c.id === selectedCredentialId)?.provider}
+                                                Provider: {credentials.find((c) => c.id === selectedCredentialId)?.provider}
                                             </p>
                                         )}
                                     </div>
