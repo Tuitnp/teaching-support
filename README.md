@@ -108,15 +108,18 @@ AutoMigrate**. MinIO initialization also attempts to create its bucket; local
 storage initialization creates directories.
 
 `backend/internal/config/config.go` loads `.env` from the process working directory.
-For native runs from `backend/`, that means `backend/.env`. However, JWT secrets
-are read during package initialization, before dotenv loads. Until R3 is fixed,
-supply `JWT_SECRET` in the process environment **before** launching Go; setting it
-only in `backend/.env` is insufficient. Tokens currently have no expiry.
+For native runs from `backend/`, that means `backend/.env`. Existing process
+environment values take precedence. After loading dotenv, the API validates
+`JWT_SECRET` before database initialization: it must contain at least 32 bytes and
+must not be blank. Signing and verification use that configured value.
+Sessions expire eight hours after login; expired or legacy tokens without expiry
+receive HTTP 401. Log out and sign in again; there is no refresh-token flow or
+automatic browser redirect on expiry. The worker does not issue or verify JWTs.
 
 | Variables | When needed / actual behavior |
 | --- | --- |
 | `DATABASE_URL` | API and worker startup; PostgreSQL DSN for a disposable database |
-| `JWT_SECRET` | API signing/verification; nonempty process environment value before startup |
+| `JWT_SECRET` | API signing/verification; generated secret of at least 32 bytes, supplied through the process environment or dotenv |
 | `REDIS_ADDRESS`, `REDIS_PASSWORD` | Queue/worker connection; address is `host:port`, password must match Redis |
 | `STORAGE_TYPE` | Choose `local`, `minio`, or `s3` explicitly; unset defaults to `s3` |
 | `LOCAL_STORAGE_PATH` | Local storage directory; default `./uploads`; API/worker must share access |
@@ -190,7 +193,7 @@ Two environment files have different roles:
   list of variables for databases, Redis, MinIO, Grafana, and frontend build URL.
 - `backend/.env` supplies API/worker runtime variables via Compose `env_file`.
   Explicit Compose `environment` entries override the corresponding values.
-  JWT configuration supplied this way exists before Go package initialization.
+  API JWT configuration is validated after environment loading and before DB startup.
 
 Both local `.env` files are ignored. Do not use the tracked `backend/.env copy`
 as a secure template; it contains fixed credential defaults. Fill values using

@@ -27,7 +27,7 @@ Do not interpret model role constants as evidence that every role has permission
 
 | Area | Current, source-verified behavior | Repair direction / open policy |
 | --- | --- | --- |
-| Login/session | University `student` type creates a student; other types create teachers. JWTs have no expiry; secret capture precedes dotenv loading. Browser logout clears local state. | R3: validate configuration and define expiry. Session lifetime/revocation policy needs a decision. |
+| Login/session | University `student` type creates a student; other types create teachers. User-approved R3 policy: HS256 sessions expire eight hours after login, with no refresh. Expiry is required, so legacy tokens are rejected. API validates a nonblank secret of at least 32 bytes after dotenv and before DB startup. Browser logout clears local state; expired requests return 401 and users must log out/sign in again. | R3 verified. Automatic browser expiry navigation and server-side session revocation are not implemented. Changing the configured secret invalidates existing signatures. |
 | Authorization | Course middleware requires active membership. Global roles gate templates, AI settings, and Python; course roles gate course work. Nested submission read/update/grade/comment routes additionally bind the submission to both URL parents; reads use course role, and student reads/updates retain ownership checks. | R1 verified with PostgreSQL-backed HTTP tests. Preserve this route guard when adding callers; ID-only helpers do not independently authorize access. Standalone attachment download remains R10. |
 | TA/admin | `ta` and `admin` constants exist, but neither has a permission-map entry. TA grading helper allows ungraded or AI-graded work, but handler gates deny TA grading. | R11: decide TA actions and human-grade precedence before making the permission map operational for them. |
 | Visibility/scheduling | Student assignment queries require `visible=true` and `start_date <= now`. Submission creation/update checks visibility and effective close, but not start. DTOs serialize dates as `YYYY-MM-DD`. | R8/R9: preserve instants and enforce agreed boundaries consistently. |
@@ -80,7 +80,7 @@ Do not interpret model role constants as evidence that every role has permission
    teacher approval before publication.
 6. **Reuse/access:** whether files of hidden/upcoming assignments may be downloaded,
    and whether multi-section distribution is needed beyond per-course template use.
-7. **Sessions/jobs:** token lifetime/revocation and intended grading timeout, retry,
+7. **Sessions/jobs:** server-side session revocation and intended grading timeout, retry,
    cancellation, and recovery behavior.
 
 Open decisions do not prevent documenting current behavior. Before implementing a

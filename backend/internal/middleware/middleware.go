@@ -11,8 +11,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var secret = config.GetEnv("JWT_SECRET")
-
 func AuthMiddleware(c fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 
@@ -45,14 +43,15 @@ func AuthMiddleware(c fiber.Ctx) error {
 
 // ParseToken validates and parses a JWT token string.
 func ParseToken(tokenStr string) (jwt.MapClaims, error) {
+	secret, err := config.JWTSecret()
+	if err != nil {
+		return nil, err
+	}
 
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		// Make sure token uses HMAC and correct signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return []byte(secret), nil
-	})
+		return secret, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithExpirationRequired(), jwt.WithIssuedAt())
 
 	if err != nil {
 		return nil, err
@@ -60,6 +59,10 @@ func ParseToken(tokenStr string) (jwt.MapClaims, error) {
 
 	// Extract claims if valid
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		userID, ok := claims["user_id"].(string)
+		if !ok || strings.TrimSpace(userID) == "" {
+			return nil, errors.New("invalid user identity")
+		}
 		return claims, nil
 	}
 

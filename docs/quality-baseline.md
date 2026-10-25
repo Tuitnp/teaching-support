@@ -239,7 +239,7 @@ example assumes a loopback instance on port 5432 with suitable local authenticat
 
 ```powershell
 $env:GOTOOLCHAIN = 'local'
-$env:JWT_SECRET = 'local-regression-tests-only'
+$env:JWT_SECRET = 'local-regression-tests-only-32-byte-secret'
 $env:TEACHING_SUPPORT_TEST_DATABASE_URL = 'postgres://teaching_support_test@127.0.0.1:5432/teaching_support_test?sslmode=disable'
 go test -mod=readonly -count=1 ./...
 go vet -mod=readonly ./...
@@ -306,3 +306,43 @@ read/delete rewriting of `..` in legacy keys is unchanged; new UUID keys contain
 such sequences. These tests do not verify live S3/MinIO infrastructure, credentials,
 bucket initialization, or deployment behavior. Failure-safe submission replacement
 remains separate R6 work.
+
+## R3 JWT configuration and session checks
+
+Measured: 2026-10-25. Approved policy: fixed eight-hour HS256 sessions, no refresh,
+re-login after expiry, reject legacy tokens without expiry, and require a nonblank
+JWT secret of at least 32 bytes. Both signing and parsing use a shared runtime
+config accessor. API startup validates it immediately after dotenv, before DB
+initialization; login handles signing failures through the normal error response.
+The worker does not use JWTs and does not require this API-only setting.
+
+Added config and middleware regression tests. The pre-patch run reproduced missing
+expiry, acceptance of HS384/HS512, invalid identity claims, and stale-key behavior.
+The final tests verify exact eight-hour issuance, valid/expired/boundary/missing-exp
+tokens, signature/algorithm/claim rejection, invalid secrets, byte-length and exact
+key preservation, dotenv-only configuration after package initialization, process
+environment precedence, and rejection before middleware DB access. Existing
+submission fixtures now set their own synthetic secret of sufficient length.
+
+| Check | Result |
+| --- | --- |
+| `go test -mod=readonly -count=1 ./internal/config ./internal/middleware` | Pass |
+| `go test -mod=readonly -count=1 ./...` | Pass; R1 tests initially skipped without DB URL |
+| `go test -mod=readonly -count=1 ./internal/handler` with disposable test URL | Pass; all 82 R1 scenarios executed with the new JWT policy |
+| `go vet -mod=readonly ./...` | Pass |
+| API and worker `go build -mod=readonly -o <external-results>/r3-*.exe ./cmd/...` (separate commands) | Both pass |
+| Built API with missing or short JWT secret and an invalid DB sentinel | Both exit nonzero with only the generic JWT configuration error, before DB initialization |
+| `git diff --check` | Pass |
+
+An independent source review found no confirmed backend bypass/regression. Tests,
+binaries, synthetic dotenv fixtures, and a new loopback-only disposable PostgreSQL
+cluster stayed outside the repository. No real authentication service, production
+database, migration, or valid-config application startup was used. The test cluster
+is retained temporarily for the immediately following R4 checks. No packages were
+installed or dependencies upgraded.
+
+Frontend files were unchanged and checks were not repeated. The existing browser
+retains cached user state; expiry is enforced by API 401 responses, after which users
+must log out and sign in again. Automatic browser navigation, refresh tokens, and
+server-side revocation are outside this patch. Deploying it invalidates old tokens
+without expiry; operators must provide a sufficiently long secret before startup.

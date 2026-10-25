@@ -105,12 +105,19 @@ Each checkbox should normally be a separate change with focused regression tests
   skipped without their explicit test URL. Independent review found no confirmed
   bypass or regression. See [quality-baseline.md](quality-baseline.md). Existing
   collided objects/overwritten bytes are not repaired by new-key generation.
-- [ ] **R3: Validate JWT configuration and define expiry.** Secrets are captured
-  before dotenv loads, and expiry is commented out. See
+- [x] **R3: Validate JWT configuration and define expiry.** Previously, secrets were
+  captured before dotenv and expiry was commented out. See
   `backend/internal/service/jwt.go`, `backend/internal/middleware/middleware.go`,
   and `backend/internal/config/config.go`.
   Acceptance: missing secrets fail safely, dotenv/system environment paths behave
   consistently, and valid/expired/invalid tokens follow the agreed session policy.
+  Evidence: user approved fixed eight-hour sessions, re-login after expiry, rejection
+  of legacy tokens without expiry, and a minimum 32-byte nonblank secret. The API
+  validates after dotenv and before DB startup; signing/parsing share the validated
+  runtime secret. Configuration/token tests, both invalid-config startup probes,
+  all 82 submission HTTP scenarios, full Go test/vet, and both binary builds passed.
+  Independent review found no confirmed backend bypass/regression. Browser expiry
+  returns 401; automatic login navigation is not implemented. See the R3 baseline.
 - [ ] **R4: Protect human grades from AI overwrites.** The worker includes human
   grades in pending/regrade sets and writes AI grades unconditionally. See
   `backend/internal/worker/grading_handler.go`.
@@ -288,3 +295,10 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   frontend checks were not repeated. No dependencies, production services, databases,
   or infrastructure were changed. Legacy normal keys remain supported; historical overwritten bytes
   and failure-safe replacement are outside R2.
+- 2026-10-25 (R3): Recorded the approved eight-hour/re-login policy and minimum
+  32-byte secret. Removed package-init key capture, enforced HS256 and expiry,
+  validated identity claims, handled signing errors, and checked API config before
+  DB startup. Config/middleware tests, invalid-startup probes, all 82 R1 HTTP cases,
+  full Go test/vet, and both binary builds passed. Independent review found no
+  confirmed backend bypass/regression. Browser auto-navigation and refresh/revocation
+  are not implemented; expired requests return 401. Only disposable test data used.

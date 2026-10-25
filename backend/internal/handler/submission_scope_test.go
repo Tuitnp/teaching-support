@@ -35,6 +35,7 @@ import (
 // production packages currently expose DB, logger and storage as globals.
 func submissionTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	t.Setenv("JWT_SECRET", "submission-regression-only-32-byte-secret")
 	dsn := os.Getenv("TEACHING_SUPPORT_TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("set TEACHING_SUPPORT_TEST_DATABASE_URL to a disposable PostgreSQL database")

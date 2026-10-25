@@ -33,7 +33,11 @@ func login(c fiber.Ctx) error {
 		return SendError(c, err)
 	}
 
-	token, _ := service.GenerateToken(user.ID)
+	token, err := service.GenerateToken(user.ID)
+	if err != nil {
+		log.Error("login_failed", "error", err)
+		return SendError(c, err)
+	}
 
 	response := models.LoginResponse{
 		Token: 		token,

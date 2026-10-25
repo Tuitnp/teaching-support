@@ -18,6 +18,9 @@ import (
 func main() {
 	// 1. Initialize Configurations and Databases
 	config.LoadEnv()
+	if _, err := config.JWTSecret(); err != nil {
+		log.Fatal(err)
+	}
 	logger.Init() // Moved up to ensure logging starts immediately
 	database.Connect()
 	if err := storage.Init(); err != nil {
