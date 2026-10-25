@@ -747,3 +747,23 @@ frontend controls do not fully express TA permissions or individual feedback
 authorship; Q5 tracks this UI alignment. Backend scope/authority are enforced
 regardless of controls. Manual score/comment failure atomicity remains R12;
 duplicate memberships, feedback release and job recovery remain separate work.
+
+
+## R12a manual score and feedback atomicity
+
+Measured: 2026-10-25 (Asia/Bangkok). Manual grade-plus-comment now shares one
+transaction, retaining R9 bounds and R11 human authority under assignment then
+submission locks. Authored upserts key on submission/author/role and serialize
+on the assignment, preserving existing comment IDs and avoiding concurrent inserts.
+AI's separate role-scoped persistence is unchanged.
+
+PostgreSQL-backed `TestManualGradeCommentAtomicity` covers grade failure, comment
+insert/update failures with full snapshot rollback, and retry without duplicate
+feedback. `TestConcurrentAuthoredFeedback` verifies two real concurrent writes
+leave one record. Both passed with an explicit disposable PostgreSQL URL. The
+focused R1 submission, R9 concurrent-bound and R11 TA/grade suites also passed.
+`go vet -mod=readonly -p 1 ./internal/repository ./internal/service ./internal/handler`
+and `git diff --check` passed. Checks used GOMAXPROCS=2, offline cached modules,
+and an external disposable cluster/log directory. Assignment writes and queue/worker
+recovery are the next R12 parts; R12 is not yet marked complete. No frontend,
+packages, live services, schema or deployment configuration changed.

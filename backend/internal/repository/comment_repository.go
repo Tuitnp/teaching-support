@@ -86,3 +86,31 @@ func GetCommentBySubmissionAndUserAndRole(submissionID, userID, role string) (*m
 func UpdateComment(comment *models.Comment) error {
 	return database.DB.Save(comment).Error
 }
+
+// Serialize authored upserts with grading to prevent duplicate feedback during
+// concurrent requests, without requiring a new database constraint.
+func SaveAuthoredComment(assignmentID string, comment *models.Comment) error {
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		if _, err := lockAssignment(tx, assignmentID); err != nil {
+			return err
+		}
+		return upsertAuthoredComment(tx, comment)
+	})
+}
+
+func upsertAuthoredComment(tx *gorm.DB, comment *models.Comment) error {
+	var existing models.Comment
+	err := tx.Where("submission_id = ? AND created_by = ? AND created_by_role = ?",
+		comment.SubmissionID, comment.CreatedBy, comment.CreatedByRole).First(&existing).Error
+	if stderrors.Is(err, gorm.ErrRecordNotFound) {
+		return tx.Create(comment).Error
+	}
+	if err != nil {
+		return err
+	}
+	if err := tx.Model(&existing).Updates(map[string]any{"comment": comment.Comment, "visible": comment.Visible}).Error; err != nil {
+		return err
+	}
+	comment.ID = existing.ID
+	return nil
+}

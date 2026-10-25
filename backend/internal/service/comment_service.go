@@ -1,8 +1,6 @@
 package service
 
 import (
-	stderrors "errors"
-
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/repository"
@@ -16,39 +14,16 @@ func CreateOrUpdateComment(
 	form *models.CommentForm,
 ) (*models.ResponseComment, error) {
 
-	err := repository.CheckSubmissionInCourse(courseID, submissionID)
+	submission, err := repository.GetSubmission(courseID, submissionID)
 	if err != nil {
 		return nil, err
 	}
-
-	comment, err := repository.GetCommentBySubmissionAndUserAndRole(submissionID, userID, role)
-
-	if stderrors.Is(err, errors.ErrCommentNotFound) {
-
-		newComment := &models.Comment{
-			SubmissionID:  submissionID,
-			Comment:       form.Comment,
-			CreatedByRole: models.Role(role),
-			CreatedBy:     userID,
-			Visible:       form.Visible,
-		}
-
-		comment, err = repository.CreateComment(newComment)
-		if err != nil {
-			return nil, err
-		}
-
-	} else if err != nil {
+	comment := &models.Comment{
+		SubmissionID: submissionID, Comment: form.Comment, CreatedByRole: models.Role(role),
+		CreatedBy: userID, Visible: form.Visible,
+	}
+	if err := repository.SaveAuthoredComment(submission.AssignmentID, comment); err != nil {
 		return nil, err
-	} else {
-
-		comment.Comment = form.Comment
-		comment.Visible = form.Visible
-		comment.CreatedByRole = models.Role(role)
-
-		if err := repository.UpdateComment(comment); err != nil {
-			return nil, err
-		}
 	}
 
 	response := models.ResponseComment{

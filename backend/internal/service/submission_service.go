@@ -147,17 +147,11 @@ func UpdateGradeAndComment(
 	if form.Point == nil {
 		return nil, errors.ErrInvalidGrade
 	}
-	if err := repository.UpdateManualGrade(submission.AssignmentID, submission.ID, *form.Point, role); err != nil {
-		return nil, err
+	comment := &models.Comment{
+		SubmissionID: submissionID, Comment: form.Comment, CreatedByRole: models.Role(role),
+		CreatedBy: userID, Visible: form.Visible,
 	}
-
-	commentForm := models.CommentForm{
-		Comment: form.Comment,
-		Visible: form.Visible,
-	}
-
-	responseComment, err := CreateOrUpdateComment(courseID, submissionID, userID, role, &commentForm)
-	if err != nil {
+	if err := repository.SaveManualGradeAndComment(submission.AssignmentID, submission.ID, *form.Point, comment); err != nil {
 		return nil, err
 	}
 
@@ -165,9 +159,9 @@ func UpdateGradeAndComment(
 		"submission_id": submission.ID,
 		"point":         *form.Point,
 		"graded_by":     role,
-		"comment_id":    responseComment.ID,
-		"comment":       responseComment.Comment,
-		"visible":       responseComment.Visible,
+		"comment_id":    comment.ID,
+		"comment":       comment.Comment,
+		"visible":       comment.Visible,
 	}
 
 	return data, nil

@@ -245,6 +245,16 @@ Each checkbox should normally be a separate change with focused regression tests
   `backend/internal/worker/`.
   Acceptance: failed steps leave recoverable state; jobs reach honest terminal
   states; retries do not duplicate feedback or corrupt grades.
+  Approved R12 job policy: explicit 30-minute attempt timeout; three retries using
+  existing queue backoff; pending between attempts, processing during an attempt,
+  failed after exhaustion; zero attached submissions is a completed no-op. Forced
+  retries may regenerate already saved AI results, updating feedback in place;
+  normal retries skip saved grades and all human grades stay protected.
+  - [x] R12a: Atomic manual score/feedback writes and serialized authored upserts.
+    PostgreSQL failure tests cover score, comment insert/update rollback, retry
+    identity, and concurrent feedback; R1/R9/R11 related checks pass.
+  - [ ] R12b: Atomic assignment content/override writes with uploads staged first.
+  - [ ] R12c: Recoverable enqueue, bounded attempts and honest worker/retry states.
   F3 also identified `asynq.Timeout(60)` in the queue client: the locked API accepts
   a `time.Duration`, so this is not a declared 60-second limit. Verify the intended
   units and actual task deadline behavior before choosing a fix; runtime impact
