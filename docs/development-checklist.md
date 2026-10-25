@@ -144,11 +144,19 @@ Each checkbox should normally be a separate change with focused regression tests
   Existing R4 cases, full Go test/vet, and both binary builds passed. Independent
   review found no confirmed bypass/regression. Clamping, comment normalization,
   fence compatibility, and R4 persistence are unchanged. See the R5 baseline.
-- [ ] **R6: Preserve submissions during file replacement.** The old object is
-  deleted before replacement succeeds. See `handleAttachmentUpdate` in
+- [x] **R6: Preserve submissions during file replacement.** Previously, the old object
+  was deleted before replacement succeeded. See `handleAttachmentUpdate` in
   `backend/internal/service/submission_service.go`.
   Acceptance: upload/database failures preserve the original content/reference;
   successful replacement and later cleanup do not delete shared or current files.
+  Evidence: user approved retaining replaced files/attachment rows for separate
+  cleanup, keeping fileless removal and grades/comments unchanged. Incoming bytes
+  are staged first; metadata insert, owner-scoped reference update, and response
+  load share one transaction. No replacement path deletes storage. All 18 failure,
+  sharing, and concurrency cases, full Go suites/vet, and both builds passed.
+  Independent review found no confirmed bypass/regression. Retained/staged orphan
+  bytes require future inventory/cleanup; existing explicit attachment/assignment
+  delete paths still need shared-file safety review. See the R6 baseline.
 - [ ] **R7: Limit AI-config updates to one owned record.** Repository updates filter
   only by user ID. See `UpdateAIConfig` in
   `backend/internal/repository/ai_repository.go` and
@@ -331,3 +339,9 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   cases passed, as did existing R4/R1 suites, full Go tests/vet, both builds, and
   diff checks. Independent review found no confirmed bypass/regression. No score
   scale, feedback normalization, R4 permission policy, dependencies, or schema changed.
+- 2026-10-25 (R6): Recorded the approved retention/fileless/grade policy. Staged
+  upload before atomic attachment insertion, owner-scoped reference update, and
+  response load. Passed all 18 replacement cases, existing full Go suites/vet,
+  both builds, and diff checks. Independent review found no confirmed issue.
+  Retained-file cleanup and shared-file safety in explicit deletion endpoints are
+  separate follow-up; no garbage collector or request-time storage deletion added.

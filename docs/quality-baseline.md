@@ -443,3 +443,42 @@ the following R6/R7 checks. No packages, real credentials/student data, producti
 services, AutoMigrate, or frontend changes were involved; frontend checks were not
 repeated. Earlier completed batches in a multi-batch job are not rolled back when a
 later batch is rejected; broader job atomicity/recovery remains R12.
+
+## R6 failure-safe submission replacement
+
+Measured: 2026-10-25. User approved preserving fileless removal and existing
+grades/comments, while retaining replaced files and attachment records for a
+separate cleanup task. Replacement now stages incoming bytes, then atomically
+inserts attachment metadata, updates one owner-scoped submission reference, and
+loads the response. Missing-at-write rows are rejected. Only attachment reference
+and its existing update timestamp change, preserving concurrent grades. Upload
+preparation is shared with creation without changing creation's existing writes.
+
+Added `backend/internal/handler/submission_replacement_test.go` using the existing
+disposable PostgreSQL fixture and a storage fake that records deletion calls. The
+pre-patch run reproduced deletion before success and multiple failure paths. Final
+18 cases pass: success, fileless detach, first upload, shared attachment ID, shared
+legacy key, repeated replacement, concurrent grading, open/upload/metadata-insert/
+reference-update/response-reload failures, missing-at-write rollback, oversized/
+hidden/closed rejection, two concurrent uploads, and concurrent upload/detach.
+Snapshots verify original references, attachment rows, grade/grader, comments and
+bytes on known failure paths; every case requires zero deletion calls. Successful
+replacement retains shared and prior bytes, and the final reference resolves to
+stored content. Failure injection uses removable GORM callbacks in test fixtures.
+
+Focused command: `go test -mod=readonly -count=1 -timeout 90s -run
+'Test(SubmissionReplacement|ConcurrentSubmissionReplacements)' ./internal/handler`.
+Then `go test -mod=readonly -count=1 -timeout 120s ./...` with the disposable test
+URL, `go vet -mod=readonly ./...`, and separate API/worker builds to external
+`r6-server.exe`/`r6-worker.exe` all passed. Existing R1/R4/R5, JWT/config and storage
+tests executed. `git diff --check` passed. Independent source review found no
+confirmed bypass/regression. No frontend changes/checks, installed packages,
+production data/services, migrations, or valid application startup were involved.
+
+The deliberate tradeoff is retained storage: old objects/rows and newly staged
+objects after DB failure are not deleted in the request. In an uncertain commit
+outcome, retaining bytes avoids deleting the now-current file; it does not claim
+to distinguish committed from uncommitted acknowledgments. No garbage collector
+was added. Future cleanup must inventory all references and shared keys before
+deletion; existing explicit `DeleteAttachment`/`DeleteAssignment` behavior is not
+hardened by this fix. The external test cluster remains available for R7 checks.

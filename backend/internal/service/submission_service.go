@@ -99,16 +99,12 @@ func UpdateSubmission(
 		return nil, errors.ErrSubmissionFileTooLarge
 	}
 
-	attachmentID, err := handleAttachmentUpdate(submission, file, userID)
+	attachment, err := handleAttachmentUpdate(file, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := repository.UpdateSubmissionAttachment(submission.ID, attachmentID); err != nil {
-		return nil, err
-	}
-
-	submission, err = repository.GetSubmissionWithAttachment(submission.ID)
+	submission, err = repository.ReplaceSubmissionAttachment(submission.ID, userID, attachment)
 	if err != nil {
 		return nil, err
 	}
@@ -232,6 +228,19 @@ func ReadSubmission(
 }
 
 func uploadSubmissionFile(userID string, file *multipart.FileHeader) (*models.Attachment, error) {
+	attachment, err := prepareSubmissionFile(userID, file)
+	if err != nil {
+		return nil, err
+	}
+	if err := repository.CreateAttachment(attachment); err != nil {
+		return nil, err
+	}
+	return attachment, nil
+}
+
+// Upload bytes before changing references. Retain staged bytes on DB failure:
+// deleting them after an uncertain commit could delete the now-current file.
+func prepareSubmissionFile(userID string, file *multipart.FileHeader) (*models.Attachment, error) {
 
 	src, err := file.Open()
 	if err != nil {
@@ -257,59 +266,17 @@ func uploadSubmissionFile(userID string, file *multipart.FileHeader) (*models.At
 		UserID:   userID,
 	}
 
-	if err := repository.CreateAttachment(&attachment); err != nil {
-		return nil, err
-	}
-
 	return &attachment, nil
 }
 
 func handleAttachmentUpdate(
-	submission *models.Submission,
 	file *multipart.FileHeader,
 	userID string,
-) (*string, error) {
-
-	if submission.AttachmentID != nil && submission.Attachment != nil {
-		err := storage.DeleteFile(submission.Attachment.FileKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+) (*models.Attachment, error) {
 	if file == nil {
 		return nil, nil
 	}
-
-	src, err := file.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer src.Close()
-
-	data, err := io.ReadAll(src)
-	if err != nil {
-		return nil, err
-	}
-
-	fileKey, err := storage.UploadFile(data, file.Filename)
-	if err != nil {
-		return nil, err
-	}
-
-	attachment := models.Attachment{
-		FileName: file.Filename,
-		FileType: file.Header.Get("Content-Type"),
-		FileKey:  fileKey,
-		Size:     file.Size,
-		UserID:   userID,
-	}
-
-	if err := repository.CreateAttachment(&attachment); err != nil {
-		return nil, err
-	}
-
-	return &attachment.ID, nil
+	return prepareSubmissionFile(userID, file)
 }
 
 func canGradeSubmission(role string, s *models.Submission) bool {

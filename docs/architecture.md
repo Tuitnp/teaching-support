@@ -125,6 +125,10 @@ Fiber errors directly, so not every failure shares that JSON contract.
    independently authorized entry points. Creation and assignment ZIP download
    keep their existing assignment-scoped checks. Standalone attachment downloads
    remain separate R10 work.
+   Replacement stages bytes before a transaction that creates attachment metadata,
+   updates the owner-scoped reference, and reloads the response. Old bytes/records
+   are retained; fileless updates detach only. This path never deletes storage and
+   does not change grades/comments. Retained-file cleanup is separate work.
 4. **Grade/report:** manual score/comment writes or worker writes -> PostgreSQL ->
    summary/export. See [summary helpers](../backend/internal/service/service.go).
 5. **AI job:** assignment service creates/resets job -> Asynq payload

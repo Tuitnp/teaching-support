@@ -162,8 +162,32 @@ func UpdateSubmission(id string, updates map[string]any) error {
 		Updates(updates).Error
 }
 
-func UpdateSubmissionAttachment(id string, attachmentID *string) error {
-	return database.DB.Model(&models.Submission{}).
-		Where("id = ?", id).
-		Update("attachment_id", attachmentID).Error
+// ReplaceSubmissionAttachment changes metadata and the reference atomically,
+// without saving a stale submission's grades or deleting any storage object.
+func ReplaceSubmissionAttachment(id, userID string, attachment *models.Attachment) (*models.Submission, error) {
+	var submission models.Submission
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		var attachmentID *string
+		if attachment != nil {
+			if err := tx.Create(attachment).Error; err != nil {
+				return err
+			}
+			attachmentID = &attachment.ID
+		}
+		result := tx.Model(&models.Submission{}).
+			Where("id = ? AND student_id = ?", id, userID).
+			Update("attachment_id", attachmentID)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return errors.ErrSubmissionNotFound
+		}
+		return tx.Preload("Attachment").Where("id = ? AND student_id = ?", id, userID).
+			First(&submission).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &submission, nil
 }
