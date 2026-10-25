@@ -102,33 +102,3 @@ func DeleteCourseMember(courseID, memberID string) error {
 		Where("course_id = ? AND user_id = ?", courseID, memberID).
 		Delete(&models.CourseMember{}).Error
 }
-
-// GetUserCourseIDs returns all course IDs where the user is a member
-func GetUserCourseIDs(userID string) ([]string, error) {
-	var courseIDs []string
-
-	err := database.DB.
-		Model(&models.CourseMember{}).
-		Where("user_id = ? AND status = ?", userID, "active").
-		Pluck("course_id", &courseIDs).
-		Error
-
-	return courseIDs, err
-}
-
-// HasNonStudentRoleInCourse checks if user has any role other than "student" in the specified course
-func HasNonStudentRoleInCourse(userID, courseID string) (bool, error) {
-	var count int64
-
-	err := database.DB.
-		Model(&models.CourseMember{}).
-		Where("user_id = ? AND course_id = ? AND role != ?", userID, courseID, "student").
-		Count(&count).
-		Error
-
-	if err != nil {
-		return false, err
-	}
-
-	return count > 0, nil
-}

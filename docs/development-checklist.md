@@ -211,12 +211,20 @@ Each checkbox should normally be a separate change with focused regression tests
   Runtime-failure atomicity of full edits and manual score/comment remains R12;
   existing records are not backfilled or rescaled.
 
-- [ ] **R10: Make attachment permissions consistent.** Downloads omit assignment
+- [x] **R10: Make attachment permissions consistent.** Downloads omit assignment
   visibility/start checks; non-student membership checks omit active status. See
   `backend/internal/service/attachment_service.go` and
   `backend/internal/repository/member_repository.go`.
   Acceptance: hidden/upcoming assignments and inactive memberships obey the agreed
   access policy, while owners and authorized course staff retain appropriate access.
+  Approved: uploader access survives detach/inactive membership; nonowners require
+  an active membership in the same referencing course. Students need a visible,
+  started handout; due/close do not end reads. Staff use `file:read_all`. Any
+  independently authorized reference suffices; no first-submission precedence.
+  Unknown release timestamps deny student downloads. Nested read/ZIP gates remain.
+  Evidence: `attachment_access_test.go` in handler/service covers release boundaries,
+  status/role scoping, multiple references, owner-only files, and DB lookup failures;
+  denied requests access no storage and downloads change no records.
 - [ ] **R11: Define and implement TA permissions.** The role exists but has no
   permission-map entry. See `backend/internal/models/models.go` and handler gates.
   Acceptance: approved teacher/TA/student actions have explicit allow/deny tests.

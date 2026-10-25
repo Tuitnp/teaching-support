@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"slices"
-	
+	"time"
+
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/errors"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/models"
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/repository"
@@ -88,61 +88,20 @@ func DownloadAttachment(userID, attachmentID string) ([]byte, string, string, er
 		return nil, "", "", err
 	}
 
-	// Check if user owns the attachment
-	if attachment.UserID == userID {
-		// User owns the attachment, allow download
-		fileBytes, err := storage.DownloadFile(attachment.FileKey)
+	if attachment.UserID != userID {
+		references, err := repository.GetAttachmentAccessReferences(userID, attachmentID)
 		if err != nil {
 			return nil, "", "", err
 		}
-		return fileBytes, attachment.FileName, attachment.FileType, nil
-	}
-
-	// Check if attachment is from a submission
-	submission, err := repository.GetSubmissionByAttachmentID(attachmentID)
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	if submission != nil {
-		// Attachment is from a submission
-		// Check if user has non-student role in the submission's course
-		hasPermission, err := repository.HasNonStudentRoleInCourse(userID, submission.Assignment.CourseID)
-		if err != nil {
-			return nil, "", "", err
-		}
-		if !hasPermission {
-			return nil, "", "", errors.ErrForbidden
-		}
-	} else {
-		// Attachment is not from a submission, check if it's from assignments
-		courseIDs, err := repository.GetCourseIDsByAttachmentID(attachmentID)
-		if err != nil {
-			return nil, "", "", err
-		}
-
-		if len(courseIDs) > 0 {
-			// Attachment is from assignments
-			// Check if user is a member of any course that uses this attachment
-			userCourseIDs, err := repository.GetUserCourseIDs(userID)
-			if err != nil {
-				return nil, "", "", err
+		allowed := false
+		now := time.Now()
+		for _, reference := range references {
+			if canReadAttachmentReference(reference, now) {
+				allowed = true
+				break
 			}
-
-			// Check if any of the user's courses match the assignment courses
-			hasCourseAccess := false
-			for _, userCourseID := range userCourseIDs {
-			    if slices.Contains(courseIDs, userCourseID) {
-			        hasCourseAccess = true
-			        break
-			    }
-			}
-
-			if !hasCourseAccess {
-				return nil, "", "", errors.ErrForbidden
-			}
-		} else {
-			// Attachment is neither from submission nor assignment, forbid
+		}
+		if !allowed {
 			return nil, "", "", errors.ErrForbidden
 		}
 	}
@@ -154,6 +113,16 @@ func DownloadAttachment(userID, attachmentID string) ([]byte, string, string, er
 	}
 
 	return fileBytes, attachment.FileName, attachment.FileType, nil
+}
+
+// Membership and assignment state come from the same scoped reference.
+func canReadAttachmentReference(reference repository.AttachmentAccessReference, now time.Time) bool {
+	if models.HasPermission(reference.Role, "file:read_all") {
+		return true
+	}
+	return reference.Handout && reference.Visible &&
+		models.HasPermission(reference.Role, "assignment:view_visible") &&
+		!reference.StartDate.IsZero() && !reference.StartDate.After(now)
 }
 
 func DeleteAttachment(userID, attachmentID string) error {

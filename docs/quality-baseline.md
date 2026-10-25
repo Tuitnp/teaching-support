@@ -675,3 +675,30 @@ student data, migrations, infrastructure or deployment changes were involved.
 Full edit and manual score/comment atomicity after runtime I/O/DB failures, and
 broader job retry/recovery remain R12. Assignment-level grade serialization adds
 short DB contention within one assignment; it holds no lock during AI requests.
+
+
+## R10 attachment download authorization
+
+Measured: 2026-10-25 (Asia/Bangkok). The user approved uploader access,
+active memberships for nonowners, visible/started student handouts with no due/close
+cutoff, staff file permissions, and access through any independently authorized
+reference. Replaced first-submission precedence and course-ID intersection with
+one scoped reference lookup, pairing assignment state and active course role.
+Unreferenced/template-only files remain uploader-only; unknown start timestamps
+fail closed for nonowner students. Removed unused broad non-student lookup helpers.
+
+`go test -mod=readonly -p 1 -count=1 -timeout 120s ./internal/handler ./internal/service
+-run TestAttachment -v` passed, including 34 new HTTP scenarios, authorization DB
+failure, and four exact-release unit cases. HTTP cases verify unchanged records
+and zero storage calls on denial. The existing upload-validation tests also ran.
+Full `go test -mod=readonly -p 1 -count=1 -timeout 120s ./...` and
+`go vet -mod=readonly -p 1 ./...` passed with an explicit disposable PostgreSQL URL;
+DB regressions executed, including prior R1-R9 and worker tests. `git diff --check`
+passed. Checks ran sequentially with GOMAXPROCS=2 and offline Go module settings.
+
+No frontend source changed; frontend checks were not repeated. Nested submission
+read and ZIP permission gates were preserved. No packages, tools, real services,
+application startup, migrations, schema/deployment configuration or production
+operations were introduced. Test cluster/logs are outside the repository and are
+reused for the separately authorized R11 checks before shutdown. Shared-file
+deletion/cleanup and legacy duplicate membership policy remain separate work.
