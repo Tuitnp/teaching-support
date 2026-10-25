@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	stderrors "errors"
 	"time"
 
@@ -55,14 +56,14 @@ func GetAssignmentWithRelations(courseID, assignmentID string) (*models.Assignme
 	return &assignment, err
 }
 
-func GetAssignmentWithAIConfig(assignmentID string) (*models.Assignment, error) {
+func GetAssignmentWithAIConfig(ctx context.Context, assignmentID string) (*models.Assignment, error) {
 	if err := models.ValidateUUIDs(assignmentID); err != nil {
 		return nil, err
 	}
 
 	var assignment models.Assignment
 
-	err := database.DB.
+	err := database.DB.WithContext(ctx).
 		Preload("AIConfig").
 		Preload("AIConfig.AICredential").
 		First(&assignment, "id = ?", assignmentID).

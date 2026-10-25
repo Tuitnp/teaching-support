@@ -208,7 +208,7 @@ Each checkbox should normally be a separate change with focused regression tests
   snapshots, inclusive limits, ownership, IDs, and actual concurrent write blocking.
   Full Go tests (including R1-R8) and vet passed with the disposable test URL;
   `git diff --check` passed. See [quality-baseline.md](quality-baseline.md).
-  Runtime-failure atomicity of full edits and manual score/comment remains R12;
+  R12 now covers full assignment edits and manual score/comment failure atomicity;
   existing records are not backfilled or rescaled.
 
 - [x] **R10: Make attachment permissions consistent.** Downloads omit assignment
@@ -238,8 +238,8 @@ Each checkbox should normally be a separate change with focused regression tests
   another author's feedback. Real concurrent-write tests verify human-grade
   protection under assignment/submission locks. Existing R1 TA read expectation
   now allows the approved access. Course-delete denial now correctly returns 403.
-  Grade/comment failure atomicity remains R12; frontend controls remain Q5.
-- [ ] **R12: Make partial writes and job recovery reliable.** Review grade/comment
+  R12 now commits manual grade/comment together; frontend controls remain Q5.
+- [x] **R12: Make partial writes and job recovery reliable.** Review grade/comment
   atomicity, assignment edits, queue-enqueue failures, early worker failures, and
   retries. See assignment/submission services, `backend/internal/queue/`, and
   `backend/internal/worker/`.
@@ -257,11 +257,16 @@ Each checkbox should normally be a separate change with focused regression tests
     Create/edit failure tests cover metadata, tags and both joins, preserving old
     content; extension update failure preserves the previous row. Existing R9
     input/concurrent-bound checks pass. Staged bytes are retained for cleanup.
-  - [ ] R12c: Recoverable enqueue, bounded attempts and honest worker/retry states.
-  F3 also identified `asynq.Timeout(60)` in the queue client: the locked API accepts
-  a `time.Duration`, so this is not a declared 60-second limit. Verify the intended
-  units and actual task deadline behavior before choosing a fix; runtime impact
-  has not been tested.
+  - [x] R12c: Recoverable enqueue, bounded attempts and honest worker/retry states.
+    New job IDs bind tasks to committed reservations; attempt tokens fence late
+    writes/cleanup. Fault tests cover lost acknowledgements, deferred commit
+    failures, concurrent starts, partial normal/forced retries, exhaustion, early
+    errors, zero work, cancellation and observed queue recovery. Full Go tests/vet
+    passed with disposable PostgreSQL. See `docs/grading-jobs.md` for state/rollout
+    rules and limits. Real Redis scheduling/restart coverage remains Q1.
+  F3's raw `Timeout(60)` was 60 ns, serialized to zero seconds, causing the locked
+  worker's 30-minute fallback. R12 now explicitly sets 30 minutes and three retries;
+  real task option values and cancellation behavior are covered by tests.
 - [ ] **R13: Define attempt and statistics semantics.** Multiple submissions are
   permitted. R8 settles summary/CSV selection as latest current file; detail-page
   default selection, attempt limits, `NotStarted`, and membership/override uniqueness
@@ -306,6 +311,8 @@ authorization for their side effects; existing user authorization still applies.
 - [ ] **Q1: Add minimal CI after baseline checks are understood.** Frontend lint,
   typecheck, and build; Go test/vet; focused integration tests using disposable
   services. Acceptance: checks need no production credentials or real student data.
+  Include a disposable Redis check of R12 task options, retries, lease loss,
+  process restarts and job reconciliation; local R12 tests used a queue adapter.
 - [ ] **Q2: Add a small critical-flow E2E suite when setup is deterministic.** Cover
   teacher assignment creation -> student submission -> teacher grading, plus denied
   access. Mock university authentication and AI providers. Start with Chromium;
@@ -323,6 +330,11 @@ authorization for their side effects; existing user authorization still applies.
   read/review and submit own feedback, allowed grading states are clear, critical
   controls follow actual course authority, and API-denied operations stay denied.
   Add author metadata only as needed; preserve student feedback visibility.
+- [ ] **Q6: Extend atomic writes to personal templates/library operations.** R12
+  transactions cover course assignments, extensions and manual grade/feedback.
+  Template/library multi-step DB/storage writes still need focused failure tests
+  and a bounded repair. Retained-file/shared-key deletion and cleanup require a
+  separate policy; do not infer permission to delete shared files.
 - [ ] **T1: Decide whether navigation tooling is needed.** Start with `rg`, Git,
   focused source reads, existing editor navigation, and short docs. If repeated
   discovery is expensive, trial only one of Graphify, Serena, or Repomap on a UI
@@ -446,3 +458,12 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   protection. Author ID now gates own-feedback visibility; course-delete denial
   returns 403. PostgreSQL fixtures were removed and the disposable cluster stopped.
   Frontend permission UI alignment remains Q5; manual grade/comment atomicity R12.
+
+- 2026-10-25 (R12): `4255b25` commits manual grades/authored feedback together;
+  `8a0e743` makes assignment content and extensions transactional after staging.
+  R12c adds committed run identities, attempt fences, explicit 30-minute/three-retry
+  options, early failure/finalization handling, and queue-state reconciliation.
+  Focused fault tests and full Go test/vet/diff checks passed with disposable
+  PostgreSQL, a local provider fake, and a controlled queue adapter. Real Redis
+  scheduling/restart validation remains Q1; template/library writes Q6. No frontend,
+  packages, live application startup, existing DB or deployment changes performed.

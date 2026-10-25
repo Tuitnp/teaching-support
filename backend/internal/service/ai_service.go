@@ -325,6 +325,16 @@ func GetGradingJobs(teacherID string) (*models.GradingJobsResponse, error) {
 		return nil, err
 	}
 
+	for i := range gradingJobs {
+		if err := reconcileGradingJob(&gradingJobs[i]); err != nil {
+			return nil, err
+		}
+	}
+	gradingJobs, err = repository.GetGradingJobsByTeacher(teacherID)
+	if err != nil {
+		return nil, err
+	}
+
 	jobs := make([]models.GradingJobResponse, len(gradingJobs))
 	for i, job := range gradingJobs {
 		jobs[i] = models.GradingJobResponse{

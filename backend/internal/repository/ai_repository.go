@@ -2,7 +2,6 @@ package repository
 
 import (
 	stderrors "errors"
-	"time"
 
 	"gorm.io/gorm"
 
@@ -134,20 +133,11 @@ func DeleteAIConfig(id string) error {
 		Error
 }
 
-func CreateGradingJob(assignmentID, teacherID string) error {
-	gradingJob := models.GradingJob{
-		AssignmentID: assignmentID,
-		TeacherID:    teacherID,
-	}
-
-	return database.DB.Create(&gradingJob).Error
-}
-
 func GetGradingJob(assignmentID, teacherID string) (*models.GradingJob, error) {
 	var gradingJob models.GradingJob
 
 	err := database.DB.
-		Where("assignment_id = ? AND teacher_id = ? AND status != ?", assignmentID, teacherID, "complete").
+		Where("assignment_id = ? AND teacher_id = ?", assignmentID, teacherID).
 		First(&gradingJob).Error
 
 	if err != nil {
@@ -158,61 +148,6 @@ func GetGradingJob(assignmentID, teacherID string) (*models.GradingJob, error) {
 	}
 
 	return &gradingJob, nil
-}
-
-func ResetGradingJob(gradingJobID string) error {
-	return database.DB.Model(&models.GradingJob{}).
-		Where("id = ?", gradingJobID).
-		Updates(map[string]any{
-			"status":                models.JobPending,
-			"progress":              0,
-			"processed_submissions": 0,
-			"total_submissions":     0,
-			"error":                 "",
-			"started_at":            nil,
-			"completed_at":          nil,
-		}).Error
-}
-
-func GradingJobStart(assignmentID, teacherID string, total int) error {
-	now := time.Now()
-
-	return database.DB.Model(&models.GradingJob{}).
-		Where("assignment_id = ? AND teacher_id = ?", assignmentID, teacherID).
-		Updates(map[string]any{
-			"status":            models.JobProcessing,
-			"total_submissions": int16(total),
-			"started_at":        &now,
-		}).Error
-}
-
-func UpdateGradingJob(assignmentID, teacherID string, progress, processedSubmissions int) error {
-	return database.DB.Model(&models.GradingJob{}).
-		Where("assignment_id = ? AND teacher_id = ?", assignmentID, teacherID).
-		Updates(map[string]any{
-			"progress":              progress,
-			"processed_submissions": processedSubmissions,
-		}).Error
-}
-func CompleteGradingJob(assignmentID, teacherID string) error {
-	now := time.Now()
-
-	return database.DB.Model(&models.GradingJob{}).
-		Where("assignment_id = ? AND teacher_id = ?", assignmentID, teacherID).
-		Updates(map[string]any{
-			"status":       models.JobCompleted,
-			"progress":     100,
-			"completed_at": &now,
-		}).Error
-}
-
-func FailGradingJob(assignmentID, teacherID string, errorMsg string) error {
-	return database.DB.Model(&models.GradingJob{}).
-		Where("assignment_id = ? AND teacher_id = ?", assignmentID, teacherID).
-		Updates(map[string]any{
-			"status": models.JobFailed,
-			"error":  errorMsg,
-		}).Error
 }
 
 func GetGradingJobsByTeacher(teacherID string) ([]models.GradingJob, error) {

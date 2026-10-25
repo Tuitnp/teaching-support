@@ -142,8 +142,8 @@ Fiber errors directly, so not every failure shares that JSON contract.
    Summary and CSV select the latest current file per student using attachment
    `CreatedAt`; per-student due determines lateness independently of grading.
    Missing historical upload times are reported explicitly, without a backfill.
-5. **AI job:** assignment service creates/resets job -> Asynq payload
-   `{assignment_id,teacher_id,force_regrade}` -> worker loads attached submissions,
+5. **AI job:** assignment service reserves a new job run -> Asynq payload
+   `{job_id,assignment_id,teacher_id,force_regrade}` -> worker loads attached submissions,
    decrypts provider key, reads files, batches ten answers, calls provider,
    normalizes results, writes scores/comments and progress. Worker concurrency is
    three. [AI persistence](../backend/internal/repository/ai_grade_repository.go)
@@ -155,14 +155,15 @@ Fiber errors directly, so not every failure shares that JSON contract.
    Mapping validates the full batch before persistence: explicit unique indexes,
    exact count, and agreement with any optional IDs are required. The JSON boundary
    rejects absent/null indexes and duplicate properties; there is no order fallback.
-   Queue enqueue sets max retries to three. The raw `Timeout(60)` option needs
-   duration-unit verification under R12; do not describe it as 60 seconds.
+   R12 explicitly sets a 30-minute whole-job attempt and three retries, binds task
+   IDs to committed job UUIDs, and fences writes/cleanup by the current attempt.
+   See [grading-jobs.md](grading-jobs.md) for enqueue, retry and rollout rules.
 6. **Run Python:** API sends base64 code/input to Judge0 with Python language ID 71,
    resource limits and `enable_network=false`; HTTP timeout is ten seconds.
 
-DB job status and Asynq execution state are separate; they are not guaranteed to
-stay synchronized. File, database, queue, and provider operations also do not form
-one transaction. Follow R1-R13/O1-O4 in the [checklist](development-checklist.md)
+DB job status and Asynq execution state are separate. R12 reconciles active job
+rows on job-list reads/new starts; DB/queue outages can delay persistence. File,
+database, queue, and provider operations also do not form one transaction. Follow R1-R13/O1-O4 in the [checklist](development-checklist.md)
 before relying on permission, preservation, or grading guarantees.
 
 Keep this map short and update the affected entry when a contract or boundary
@@ -182,4 +183,5 @@ references are owned. `repository/grade_bounds.go` serializes grade writes and
 assignment edits using an assignment row lock, then checks current bounds.
 `repository/ai_grade_repository.go` retains its conditional human-grade protection
 and score/feedback transaction. No provider or storage call holds the assignment
-lock. Full edit and manual score/comment atomicity remain R12.
+lock. R12 commits assignment content and manual score/comment atomically; uploads
+are staged outside DB locks and retained on failure. Template/library writes are Q6.

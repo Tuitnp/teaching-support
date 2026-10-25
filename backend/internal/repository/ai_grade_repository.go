@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	stderrors "errors"
 
 	"github.com/6510615294/Tech-Support-CN101/backend/internal/database"
@@ -12,14 +13,27 @@ import (
 // submission row lock until feedback commits, serializing with manual grades.
 // Normal runs only fill genuinely ungraded rows; forced runs may replace AI work.
 func SaveAIGradeAndComment(assignmentID, submissionID, teacherID string, point int16, comment string, force bool) (bool, error) {
+	return saveAIGradeAndComment(database.DB, nil, assignmentID, submissionID, teacherID, point, comment, force)
+}
+
+func SaveAIGradeForAttempt(ctx context.Context, attempt *GradingAttempt, submissionID string, point int16, comment string, force bool) (bool, error) {
+	return saveAIGradeAndComment(database.DB.WithContext(ctx), attempt, attempt.AssignmentID, submissionID, attempt.TeacherID, point, comment, force)
+}
+
+func saveAIGradeAndComment(db *gorm.DB, attempt *GradingAttempt, assignmentID, submissionID, teacherID string, point int16, comment string, force bool) (bool, error) {
 	applied := false
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		assignment, err := lockAssignment(tx, assignmentID)
 		if stderrors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
 		if err != nil {
 			return err
+		}
+		if attempt != nil {
+			if err := checkGradingAttempt(tx, attempt); err != nil {
+				return err
+			}
 		}
 		eligible := "(graded_by IS NULL AND point IS NULL)"
 		if force {

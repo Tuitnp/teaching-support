@@ -790,3 +790,53 @@ and `git diff --check` passed. PostgreSQL/logs remain disposable and external.
 Template/library multi-step writes are outside this assignment fix; no frontend,
 packages, application startup, live database, or deployment changes occurred.
 Queue/worker recovery remains the final R12 part.
+
+
+## R12c enqueue and worker recovery
+
+Measured: 2026-10-25 (Asia/Bangkok). Implemented the user's explicit 30-minute
+whole-job attempt and three automatic retries with existing Asynq backoff. Pending
+means waiting/retrying, processing means an active attempt, failed means exhausted,
+and zero attached submissions completes without provider work. Forced retries may
+regenerate saved AI results; normal retries preserve saved grades. Existing R4/R5/
+R9/R11 authority, mapping and bounds remain enforced.
+
+A new job UUID is both task ID and the committed run identity. Enqueue occurs in
+its reservation transaction, bounded to five seconds; failures roll back without
+leaving a pending row or destroying the previous terminal job. An accepted orphan
+cannot write without its committed UUID. Fresh started-at tokens fence progress,
+cleanup and AI writes; worker DB/storage/provider calls receive the attempt context.
+Job reads/new starts reconcile Redis retry/archive/missing state, preserving rows
+on Redis errors. Completed task retention is 24 hours. No schema change was needed.
+The prior raw Timeout(60) was verified in locked Asynq v0.26.0: nanoseconds become
+zero whole seconds on serialization, and computeDeadline falls back to 30 minutes.
+The new option explicitly states that duration. See `docs/grading-jobs.md` for
+tradeoffs, failure recovery, ID changes and coordinated legacy-task rollout.
+
+Focused handler/worker recovery tests passed, covering lost queue acknowledgements,
+a real PostgreSQL deferred commit failure after queue acceptance, concurrent starts,
+real Asynq option values, queued/archived/completed/missing states and Redis outage,
+early DB/config/storage/provider/progress/finalization failures across all four
+attempts, empty work, duplicate completed delivery, partial normal/forced writes,
+feedback identity, provider cancellation, stale run/attempt fences, late timeout
+cleanup, and context cancellation of a real blocked SQL grade write. Initial fault
+runs caught fixture isolation issues and unnecessary Teacher preloading in worker
+error cleanup; these were corrected before the final passing runs. A formatting
+command used the wrong working directory and was rerun successfully.
+
+Final `go test -mod=readonly -p 1 -count=1 -timeout 120s ./...` and
+`go vet -mod=readonly -p 1 ./...` passed with the explicit disposable PostgreSQL URL,
+executing R12a/b/c and all prior DB/worker/storage regressions. API/worker packages
+compiled; application entry points were not started. `git diff --check` passed.
+Commands ran sequentially with GOMAXPROCS=2 and offline cached modules. PostgreSQL
+had zero fixture schemas, was stopped, and its port was confirmed closed. All
+scratch, logs and DB state remain outside the repository.
+
+Redis was unavailable: enqueue/inspection used a controlled adapter with real
+Asynq task/option types, and provider calls used a local HTTP fake. Actual broker
+scheduling/lease recovery/process restarts remain the explicit Q1 integration
+check. No 30-minute wall-clock wait or real provider/broker operation was claimed.
+No frontend changes/checks, packages/tools, production services, real student data,
+credentials, existing-DB mutations, migrations, infrastructure or deployment
+changes were involved. Q6 tracks personal template/library write atomicity;
+retained-file/shared-key cleanup and policy decisions remain separate work.

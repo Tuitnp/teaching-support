@@ -33,7 +33,7 @@ TAs can create/update their own feedback, including its visibility, independentl
 of grade eligibility. Toggling feedback requires matching author ID **and** TA
 role; another TA's, teacher's or AI feedback is protected. Teachers retain
 `assignment:comment_any`. Feedback visibility/release defaults are unchanged.
-Grade-and-comment runtime failure atomicity remains R12.
+R12a commits a manual grade and its authored comment atomically.
 
 ## Every permission choice
 

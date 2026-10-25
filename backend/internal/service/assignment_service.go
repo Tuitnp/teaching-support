@@ -326,35 +326,18 @@ func AutoGradingAssignment(userID, courseID, assignmentID string) error {
 		return errors.ErrAIConfigNotFound
 	}
 
-	job, _ := repository.GetGradingJob(assignmentID, userID)
-	if job != nil {
-		if job.Status == models.JobPending || job.Status == models.JobProcessing {
-			return errors.ErrAIGradingLimit
-		}
-
-		err = repository.ResetGradingJob(job.ID)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := repository.CreateGradingJob(assignmentID, userID)
-		if err != nil {
-			return err
-		}
-	}
-
-	payload := queue.AutoGradingPayload{
-		AssignmentID: assignmentID,
-		TeacherID:    userID,
-		ForceRegade:  job != nil && job.Status == models.JobCompleted,
-	}
-
-	err = queue.EnqueueAutoGrading(payload)
+	job, err := repository.GetGradingJob(assignmentID, userID)
 	if err != nil {
 		return err
 	}
-
-	return nil
+	if job != nil {
+		if err := reconcileGradingJob(job); err != nil {
+			return err
+		}
+	}
+	return repository.EnqueueGradingRun(assignmentID, userID, func(id string, force bool) error {
+		return queue.EnqueueAutoGrading(queue.AutoGradingPayload{JobID: id, AssignmentID: assignmentID, TeacherID: userID, ForceRegade: force})
+	})
 }
 
 func DownloadSubmissions(courseID, assignmentID string) ([]byte, error) {

@@ -182,7 +182,9 @@ func (f *gradingFixture) snapshot(t *testing.T, sid string) string {
 }
 
 func (f *gradingFixture) run(force bool) error {
-	payload, _ := json.Marshal(queue.AutoGradingPayload{AssignmentID: f.assignment, TeacherID: f.teacher, ForceRegade: force})
+	var jobID string
+	_ = f.db.Raw("SELECT id FROM grading_jobs WHERE assignment_id=? AND teacher_id=?", f.assignment, f.teacher).Scan(&jobID).Error
+	payload, _ := json.Marshal(queue.AutoGradingPayload{JobID: jobID, AssignmentID: f.assignment, TeacherID: f.teacher, ForceRegade: force})
 	return HandleAutoGrading(context.Background(), asynq.NewTask(queue.TypeAutoGrading, payload))
 }
 

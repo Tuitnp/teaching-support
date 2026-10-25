@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	stderrors "errors"
 
 	"gorm.io/gorm"
@@ -33,10 +34,10 @@ func GetSubmission(courseID, submissionID string) (*models.Submission, error) {
 	return &submission, nil
 }
 
-func GetSubmissions(assignmentID string) ([]models.Submission, error) {
+func GetSubmissions(ctx context.Context, assignmentID string) ([]models.Submission, error) {
 	var submissions []models.Submission
 
-	err := database.DB.
+	err := database.DB.WithContext(ctx).
 		InnerJoins("Attachment").
 		Where("assignment_id = ?", assignmentID).
 		Find(&submissions).Error

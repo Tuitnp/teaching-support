@@ -17,7 +17,8 @@ func Start(redisAddr, redisPassword string) {
 			// },
 		},
 		asynq.Config{
-			Concurrency: 3,
+			Concurrency:  3,
+			ErrorHandler: asynq.ErrorHandlerFunc(HandleGradingError),
 		},
 	)
 
