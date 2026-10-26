@@ -202,8 +202,18 @@ Two environment files have different roles:
 
 Both local `.env` files are ignored. Do not use the tracked `backend/.env copy`
 as a secure template; it contains fixed credential defaults. Fill values using
-development credentials and the runtime table above. No `.dockerignore` exists
-yet, so a local environment file may enter a Docker build context (O2).
+development credentials and the runtime table above.
+
+[Backend](backend/.dockerignore) and [frontend](frontend/.dockerignore) build-context
+exclusions keep root/nested `.env*` files (including `backend/.env copy`), common
+private-key/credential files, editor state, and generated output out of the build.
+Backend local uploads are excluded; frontend dependencies and Next.js output are
+created inside the existing Docker build stages. Source, tests, public assets,
+manifests, and lockfiles remain included. Supply runtime environment through the
+existing Compose `env_file`/environment settings; the frontend API URL still uses
+the existing build argument. Static path checks passed, but native Docker context
+and image-build verification remain pending because Docker was unavailable.
+Tracked credential-default review remains separate O2 work.
 
 ### Blockers before a full-stack start
 

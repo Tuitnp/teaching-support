@@ -1,0 +1,30 @@
+# Runtime credentials and private keys, including nested copies.
+**/.env*
+**/.npmrc
+**/.netrc
+**/.aws
+**/.ssh
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+# Version control, editor state, and local operating-system files.
+**/.git
+**/.idea
+**/.vscode
+**/.DS_Store
+**/Thumbs.db
+
+# Install and build dependencies/output inside the Docker build stages.
+**/node_modules
+**/.next
+**/out
+**/build
+**/dist
+**/coverage
+**/.cache
+**/.vercel
+**/*.tsbuildinfo
+**/logs
+**/*.log

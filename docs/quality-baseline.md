@@ -941,3 +941,40 @@ AI-specific repository artifact was introduced. Browser/component E2E and a real
 Redis restart remain Q2/Q1; this run does not claim those were executed. Existing
 application locks prevent duplicate supported writes, not direct SQL/imports;
 future database constraints and cleanup require separate review per attempt-policy.
+
+## O2a build-context exclusions
+
+Measured: 2026-10-26 (Asia/Bangkok). Added `.dockerignore` files at both actual
+build-context roots, `backend/` and `frontend/`. Rules exclude root/nested `.env*`
+files, including the tracked `backend/.env copy`, common credential/private-key
+files, VCS/editor state, logs and coverage. Backend uploads and generated root
+server/worker binaries are excluded; frontend host dependencies, Next.js output,
+build output and caches are excluded. Existing Dockerfiles, Compose configuration,
+credential values, dependencies, and application source are unchanged.
+
+Verification used an external Python standard-library script restricted to the
+rule syntax present: exact root paths and `**/basename` globs, with excluded
+directory descendants inherited. It checks expected inclusion/exclusion of
+synthetic root/nested paths and inspects tracked paths without reading credential
+or submission contents. It is a static contract check, not Docker's matcher.
+
+From the repository root, the executed command was:
+
+```powershell
+python "$env:USERPROFILE/.codex/tmp/teaching-support-o2-20261026/verify-docker-contexts.py" --repo (Get-Location).Path
+```
+
+All 376 checks passed: 174 backend checks across 110 tracked paths and 202 frontend
+checks across 128 tracked paths, including the two staged `.dockerignore` files.
+The sole excluded tracked path is `backend/.env copy`.
+Explicit required-input checks preserve both Go entry points, `internal/worker`,
+Go manifests, frontend manifests/lockfile/configuration, public assets, source and
+existing tests. Environment variants, nested credential directories, key files,
+generated artifacts and root-only backend binary exclusions are covered.
+
+Docker was absent from PATH and the standard Docker Desktop CLI location. Native
+context/archive verification, image builds, and Compose integration were not run.
+No packages/tools were installed, application tests rerun, services started, or
+existing databases accessed. Application test/build results remain the previously
+recorded R13 baseline. `git diff --check` passed. O2 remains open for native Docker
+verification and the separate credential-default review.

@@ -1,6 +1,6 @@
 # Development checklist
 
-Updated: 2026-10-25 (Asia/Bangkok)
+Updated: 2026-10-26 (Asia/Bangkok)
 
 This is the shared project roadmap from the repository audit and its approved
 recommendations. It records application work and developer documentation, not
@@ -318,6 +318,16 @@ authorization for their side effects; existing user authorization still applies.
   `.dockerignore` coverage and replace tracked credential defaults with safe
   examples where appropriate. `backend/.env copy` contains default credentials;
   their use in production is unverified. Never print or commit real credentials.
+  - [x] O2a: Add backend/frontend build-context exclusions for local environment
+    and common credential/key files, generated output, editor state, and backend
+    uploads. Static checks cover root/nested fixtures and all 238 tracked context
+    paths; required source, tests, public assets, manifests and lockfiles remain
+    included, including `cmd/worker` and `internal/worker`. All 376 path checks pass.
+    Docker is unavailable, so native context/image-build verification is pending;
+    these checks do not claim an actual Docker archive or image was inspected.
+  - [ ] Validate exclusions with native Docker in a disposable environment.
+  - [ ] Review tracked credential defaults and safe examples separately; no
+    credentials were changed by O2a.
 - [ ] **O3: Review operational boundaries.** Plan startup migration ownership,
   readiness checks, queue persistence, Judge0 isolation/image reproducibility, and
   backup/restore verification. Both entry points currently run AutoMigrate.
@@ -498,3 +508,12 @@ outcomes, and remaining risks. Keep private session notes and logs outside the r
   historical deletion, package/tool install or deployment performed. Disposable
   PostgreSQL had zero fixture schemas and was stopped. Real Redis/flow E2E remain
   Q1/Q2; direct writers bypassing application locks need separate constraint review.
+
+- 2026-10-26 (O2a): Added backend/frontend `.dockerignore` rules for local
+  environment/credential files, generated output, editor state and backend uploads.
+  All 376 static path-contract checks passed, covering 238 tracked context paths
+  and root/nested fixtures; source, tests, assets, manifests and lockfiles remain
+  included. Staged diff and whitespace checks passed. Docker is unavailable, so
+  native context/image-build validation remains pending under O2, alongside the
+  separate credential-default review. No application tests/builds, package/tool
+  installs, services, existing databases, credentials or deployment changes.
